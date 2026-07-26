@@ -32,7 +32,9 @@ type HistoryEntry = {
   result: PredictionResult;
 };
 
-const API_URL = "http://localhost:8000/predict";
+const API_URL = "https://literate-system-4jr6xx7qxjq6397w-8000.app.github.dev/predict";
+// OR
+// const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/predict`;
 const ACCEPTED_EXT = /\.(mp3|wav)$/i;
 
 /* -------------------------------------------------------------------------- */
@@ -536,9 +538,9 @@ export default function HitPredictorConsole() {
         };
         setHistory((prev) => [entry, ...prev].slice(0, 6));
       }
-    } catch {
+    } catch (err) {
       setResult({
-        error: "Couldn't reach the prediction server — make sure the backend is running on localhost:8000.",
+        error: "Couldn't reach the prediction server. Please ensure the Codespace backend is public and running.",
       });
     } finally {
       setAnalyzing(false);
