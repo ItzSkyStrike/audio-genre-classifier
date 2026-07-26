@@ -32,7 +32,7 @@ type HistoryEntry = {
   result: PredictionResult;
 };
 
-const API_URL = "https://literate-system-4jr6xx7qxjq6397w-8000.app.github.dev/predict";
+const API_URL = "https://audio-predictor-backend.onrender.com/predict";
 // OR
 // const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/predict`;
 const ACCEPTED_EXT = /\.(mp3|wav)$/i;
