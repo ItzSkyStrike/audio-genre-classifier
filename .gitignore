@@ -25,7 +25,3 @@ kaggle.json
 
 # Model Weights (Optional: Ignore if file size is > 100MB)
 # music_vision_model.pth
-
-# Ignore Large Machine Learning Models
-*.joblib
-*.pth
