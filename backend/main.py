@@ -16,11 +16,11 @@ app = FastAPI(title="Spotify Hit & Genre Predictor API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # This tells the backend to accept requests from anywhere
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 print("Loading local models...")
 # 1. Load the Tabular Hit Predictor
 hit_model = joblib.load('spotify_hit_predictor_model.joblib')
