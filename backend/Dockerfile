@@ -1,11 +1,17 @@
-FROM python:3.11-slim
+# Use Python 3.14 to match the environment where the model was trained
+FROM python:3.14-slim
 
 WORKDIR /code
 
-COPY ./requirements.txt /code/requirements.txt
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+# Copy your application code and the model file
+COPY . .
 
-COPY . /code
+# Expose the port FastAPI runs on
+EXPOSE 80
 
+# Start the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
