@@ -33,5 +33,6 @@ jobs:
           registryUsername: ${{ secrets.HITPREDICTORAPI_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.HITPREDICTORAPI_REGISTRY_PASSWORD }}
           imageToBuild: ghcr.io/itzskystrike/hit-predictor-api:${{ github.sha }}
+          imageToDeploy: ghcr.io/itzskystrike/hit-predictor-api:${{ github.sha }}
           containerAppName: hit-predictor-api
           resourceGroup: Audio-Backend
