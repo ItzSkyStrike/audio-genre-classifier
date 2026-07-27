@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true   # This tells GitHub to download the REAL model file!
 
       - name: Log in to Azure
         uses: azure/login@v2
