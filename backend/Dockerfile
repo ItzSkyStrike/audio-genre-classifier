@@ -3,6 +3,12 @@ FROM python:3.14-slim
 
 WORKDIR /code
 
+# Install system dependencies required by librosa and torchaudio
+RUN apt-get update && apt-get install -y \
+    libsndfile1 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
