@@ -1,43 +1,79 @@
-# 🎵 Hit Predictor API
+# 🎵 AI Hit Predictor — Full-Stack Audio Intelligence Platform
 
-A machine learning-powered REST API built with **FastAPI** that analyzes 30-second audio clips to predict whether a song has the potential to be a commercial hit. 
+An enterprise-grade, end-to-end Machine Learning web application that analyzes raw audio telemetry to predict commercial hit potential, detect music genres, and extract core acoustic features in real time.
 
-This API extracts audio features on the fly and utilizes a dual-model approach, combining a deep learning vision model and a tabular machine learning model to make its predictions.
-
-## 🚀 Tech Stack
-*   **Framework:** FastAPI & Uvicorn
-*   **Audio Processing:** Librosa & Torchaudio
-*   **Machine Learning:** PyTorch (ResNet18) & Scikit-Learn (`joblib`)
-*   **Containerization:** Docker (`python:3.14-slim`)
-*   **Deployment:** Azure Container Apps
-
-## ✨ Features
-*   **Audio Feature Extraction:** Automatically processes raw `.wav` or `.mp3` audio files to extract Mel-spectrograms and other key acoustic features.
-*   **Deep Learning Inference:** Passes generated spectrograms through a custom PyTorch `ResNet18` architecture.
-*   **Ensemble Prediction:** Combines neural network outputs with a tabular model for highly accurate hit predictions.
-*   **Interactive UI:** Fully documented Swagger UI available at the `/docs` endpoint for easy testing.
+Built with a high-performance **FastAPI** backend containerized on **Azure Container Apps** and paired with a sleek, dark-mode **Next.js** frontend featuring Web Audio API waveform decoding.
 
 ---
 
-## 🛠️ Local Development Setup
+## 🌟 Key Features
 
-### Prerequisites
-*   Python 3.9+ 
-*   Docker (Optional, but recommended)
+### 🖥️ Next.js Web Audio Frontend (`HitPredictorConsole`)
+* **Real-Time Client-Side Waveform Decoding:** Utilizes the browser's native `AudioContext` and `decodeAudioData` to calculate normalized amplitude peaks and render seekable audio waveforms on the fly.
+* **Animated Confidence Ring:** Visualizes the model's prediction score using dynamic conic gradients and custom easing animations.
+* **Acoustic Breakdown Display:** Displays key acoustic metrics with animated progress meters:
+  * **Tempo (BPM)**
+  * **Energy & Danceability (%)**
+  * **Loudness (dB)**
+  * **Acousticness & Mood/Valence (%)**
+* **Interactive Player:** Play/pause audio previews, scrub through tracks, and maintain a local session history of recent predictions.
 
-### 1. Run via Standard Python
-Clone the repository and install the heavy ML dependencies:
+### 🧠 Machine Learning & Backend API
+* **Acoustic Feature Extraction:** Leverages `Librosa` to process raw `.mp3` and `.wav` audio files into Mel-spectrograms on the fly.
+* **Deep Learning Engine:** Powered by a **PyTorch (ResNet18)** model fine-tuned for audio pattern recognition alongside `Scikit-Learn` classifiers.
+* **FastAPI Server:** Exposes lightweight RESTful endpoints (`/predict`) designed for file streaming and JSON response delivery.
 
-```bash
-git clone [https://github.com/yourusername/hit-predictor-api.git](https://github.com/yourusername/hit-predictor-api.git)
-cd hit-predictor-api
+---
 
-# Create a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+## 🛠️ Tech Stack
 
-# Install dependencies
-pip install -r requirements.txt
+| Domain | Technology | Role |
+| :--- | :--- | :--- |
+| **Frontend** | React / Next.js, Tailwind CSS, TypeScript | Client interface, Web Audio API waveform processing, interactive player |
+| **Backend** | FastAPI, Uvicorn, Python 3.10+ | REST API, async request handling, model serving |
+| **Machine Learning** | PyTorch, Librosa, Scikit-Learn | Audio processing, Mel-spectrogram extraction, prediction modeling |
+| **Cloud & DevOps** | Azure Container Apps, Docker, GitHub Actions | Serverless container deployment, custom TCP health probes |
 
-# Run the Uvicorn server locally
-uvicorn main:app --host 0.0.0.0 --port 80 --reload
+---
+
+## 💡 Cloud Engineering & DevOps Highlights
+
+Deploying heavy Machine Learning libraries (`PyTorch`, `Librosa`) on resource-constrained cloud infrastructure introduces significant memory and cold-start challenges.
+
+### 🎯 Right-Sizing Hardware Constraints
+* **Allocation:** Configured to run on **1.0 vCPU and 2.0 GB RAM** to maximize cost efficiency on Azure.
+* **Resource Optimization:** Holds heavy model weights in memory while consuming **< 0.08 vCPU cores** during idle states, keeping operational costs minimal without compromising response latency.
+
+### ⚙️ Custom Kubernetes Probes (Solving Cold Starts)
+To prevent Azure from timing out or prematurely terminating containers during boot due to heavy library imports:
+* Custom **Startup, Liveness, and Readiness TCP Probes** were engineered.
+* Configured initial startup delays and failure thresholds to allow a **5-minute boot buffer**, guaranteeing container stability on single vCPU setups.
+
+---
+
+## 🔌 API Documentation
+
+### `POST /predict`
+Accepts a raw audio file upload and returns prediction scores alongside extracted acoustic telemetry.
+
+**Request Header:**
+`Content-Type: multipart/form-data`
+
+**Request Body:**
+* `file`: Audio file (`.mp3` or `.wav`)
+
+**Sample JSON Response:**
+```json
+{
+  "is_hit": 1,
+  "confidence": 88.5,
+  "genre": "Pop / Dance",
+  "extracted_features": {
+    "tempo": 124.0,
+    "energy": 0.82,
+    "danceability": 0.76,
+    "loudness": -5.4,
+    "acousticness": 0.12,
+    "valence": 0.68
+  }
+}
