@@ -3,10 +3,14 @@ FROM python:3.14-slim
 
 WORKDIR /code
 
-# Install system dependencies required by librosa and torchaudio
+# Force Python to print logs immediately (bypasses the silent crash trap)
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies required by librosa, torchaudio, and scikit-learn
 RUN apt-get update && apt-get install -y \
     libsndfile1 \
     ffmpeg \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
@@ -19,5 +23,5 @@ COPY . .
 # Expose the port FastAPI runs on
 EXPOSE 80
 
-# Start the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+# Start the application using the bulletproof python module method
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
