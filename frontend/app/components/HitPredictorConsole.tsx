@@ -36,6 +36,24 @@ const API_URL = "https://hit-predictor-api.proudbeach-12e8e35e.centralindia.azur
 const ACCEPTED_EXT = /\.(mp3|wav)$/i;
 
 /* -------------------------------------------------------------------------- */
+/*  Canvas Particle System Types                                              */
+/* -------------------------------------------------------------------------- */
+
+type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  opacity: number;
+  type: "ambient" | "trail" | "burst" | "ripple";
+  radius?: number;
+  maxRadius?: number;
+};
+
+/* -------------------------------------------------------------------------- */
 /*  Small presentational helpers                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -105,7 +123,10 @@ function Waveform({
             className="flex-1 origin-bottom rounded-full transition-colors duration-150"
             style={{
               height: `${Math.max(10, p * 100)}%`,
-              background: played ? "#22E67A" : "rgba(255,255,255,0.14)",
+              background: played
+                ? "linear-gradient(180deg, #39FF14, #00FF41)"
+                : "rgba(0,255,65,0.08)",
+              boxShadow: played ? "0 0 6px rgba(57,255,20,0.4)" : "none",
               animation: `bar-grow 0.4s ease-out ${i * 4}ms both`,
             }}
           />
@@ -291,21 +312,21 @@ const FEATURE_META: Record<
     label: "Energy",
     icon: <IconBolt />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#F5B94D",
+    accent: "#39FF14",
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
   danceability: {
     label: "Danceability",
     icon: <IconWave />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#22E67A",
+    accent: "#00FF41",
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
   loudness: {
     label: "Loudness",
     icon: <IconSpeaker />,
     format: (v) => `${v.toFixed(1)} dB`,
-    accent: "#5FB8E8",
+    accent: "#0FFF50",
     // backend reports loudness on the standard -60dB (silent) to 0dB (peak) scale
     meter: (v) => Math.max(0, Math.min(100, ((v - -60) / (0 - -60)) * 100)),
   },
@@ -313,14 +334,14 @@ const FEATURE_META: Record<
     label: "Acousticness",
     icon: <IconLeaf />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#4FD1B5",
+    accent: "#7CFF8C",
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
   valence: {
     label: "Mood",
     icon: <IconSmile />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#F2799B",
+    accent: "#B8FF5C",
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
 };
@@ -359,6 +380,198 @@ export default function HitPredictorConsole() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: 0, y: 0, active: false });
+  const particlesRef = useRef<Particle[]>([]);
+
+  /* ---- Canvas Particle System (60 FPS) ---- */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animId = 0;
+    let lastSpawn = 0;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseRef.current.x = e.clientX;
+      mouseRef.current.y = e.clientY;
+      mouseRef.current.active = true;
+
+      // Trail particles on cursor move
+      if (Math.random() < 0.4) {
+        particlesRef.current.push({
+          x: e.clientX + (Math.random() - 0.5) * 8,
+          y: e.clientY + (Math.random() - 0.5) * 8,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8 - 0.3,
+          life: 0,
+          maxLife: 30 + Math.random() * 20,
+          size: 1.2 + Math.random() * 2,
+          opacity: 0.6 + Math.random() * 0.4,
+          type: "trail",
+        });
+      }
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      // Burst particles on click
+      const count = 12 + Math.floor(Math.random() * 8);
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+        const speed = 1.5 + Math.random() * 3;
+        particlesRef.current.push({
+          x: e.clientX,
+          y: e.clientY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0,
+          maxLife: 40 + Math.random() * 25,
+          size: 1.5 + Math.random() * 2.5,
+          opacity: 1,
+          type: "burst",
+        });
+      }
+      // Energy ripple
+      particlesRef.current.push({
+        x: e.clientX,
+        y: e.clientY,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 50,
+        size: 0,
+        opacity: 0.5,
+        type: "ripple",
+        radius: 0,
+        maxRadius: 80 + Math.random() * 40,
+      });
+    };
+
+    const handleMouseLeave = () => {
+      mouseRef.current.active = false;
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("click", handleClick);
+    document.addEventListener("mouseleave", handleMouseLeave);
+
+    // Seed ambient particles
+    for (let i = 0; i < 40; i++) {
+      particlesRef.current.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: -0.15 - Math.random() * 0.25,
+        life: Math.random() * 200,
+        maxLife: 200 + Math.random() * 200,
+        size: 1 + Math.random() * 2,
+        opacity: 0.15 + Math.random() * 0.35,
+        type: "ambient",
+      });
+    }
+
+    const tick = (now: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Spawn ambient particles periodically
+      if (now - lastSpawn > 120) {
+        lastSpawn = now;
+        if (particlesRef.current.filter((p) => p.type === "ambient").length < 50) {
+          particlesRef.current.push({
+            x: Math.random() * canvas.width,
+            y: canvas.height + 10,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: -0.2 - Math.random() * 0.4,
+            life: 0,
+            maxLife: 250 + Math.random() * 250,
+            size: 1 + Math.random() * 2.2,
+            opacity: 0.1 + Math.random() * 0.3,
+            type: "ambient",
+          });
+        }
+      }
+
+      // Update & draw particles
+      const alive: Particle[] = [];
+      for (const p of particlesRef.current) {
+        p.life++;
+        if (p.life > p.maxLife) continue;
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        const progress = p.life / p.maxLife;
+
+        if (p.type === "ripple") {
+          p.radius = (p.maxRadius ?? 80) * progress;
+          const alpha = p.opacity * (1 - progress);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(57, 255, 20, ${alpha})`;
+          ctx.lineWidth = 1.5 * (1 - progress);
+          ctx.stroke();
+        } else {
+          // Fade in then out
+          let alpha: number;
+          if (p.type === "ambient") {
+            alpha = p.opacity * (progress < 0.1 ? progress / 0.1 : 1 - progress);
+          } else {
+            alpha = p.opacity * (1 - progress);
+          }
+
+          if (p.type === "burst") {
+            p.vx *= 0.96;
+            p.vy *= 0.96;
+          }
+
+          const currentSize = p.type === "burst" ? p.size * (1 - progress * 0.5) : p.size;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
+
+          if (p.type === "trail") {
+            ctx.fillStyle = `rgba(0, 255, 65, ${alpha * 0.8})`;
+            ctx.shadowColor = "rgba(57, 255, 20, 0.6)";
+            ctx.shadowBlur = 6;
+          } else if (p.type === "burst") {
+            ctx.fillStyle = `rgba(57, 255, 20, ${alpha})`;
+            ctx.shadowColor = "rgba(57, 255, 20, 0.8)";
+            ctx.shadowBlur = 10;
+          } else {
+            ctx.fillStyle = `rgba(0, 255, 65, ${alpha})`;
+            ctx.shadowColor = "rgba(0, 255, 65, 0.3)";
+            ctx.shadowBlur = 4;
+          }
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+
+        alive.push(p);
+      }
+      particlesRef.current = alive;
+
+      animId = requestAnimationFrame(tick);
+    };
+
+    animId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("click", handleClick);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, []);
 
   // Create a playable object URL whenever a new file is selected, and clean
   // up the previous one so blob URLs don't leak between selections.
@@ -548,274 +761,478 @@ export default function HitPredictorConsole() {
   const isHit = result?.is_hit === 1;
   const hasPrediction = !!result && !result.error && typeof result.is_hit === "number";
   const confidence = Math.max(0, Math.min(100, result?.confidence ?? 0));
-  const ringColor = isHit ? "#22E67A" : "#E8785C";
+  const ringColor = isHit ? "#39FF14" : "#FF3131";
 
   const featureEntries = Object.entries(result?.extracted_features ?? {}).filter(
     ([, v]) => typeof v === "number"
   ) as [string, number][];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#08080a] px-4 py-16 text-[#F2F2F5] sm:px-6">
-      {/* subtle dot-grid texture — keeps the dark field from reading flat */}
+    <div
+      className="relative min-h-screen overflow-hidden px-3 py-8 text-[#E0E0E0] sm:px-6 sm:py-12 md:py-16"
+      style={{
+        background: "linear-gradient(165deg, #010803 0%, #020204 28%, #031008 55%, #020204 100%)",
+      }}
+    >
+      {/* ---- Canvas particle layer ---- */}
+      <canvas
+        ref={canvasRef}
+        className="pointer-events-none fixed inset-0 z-10"
+        style={{ mixBlendMode: "screen" }}
+        aria-hidden="true"
+      />
+
+      {/* ---- Cyber grid ---- */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)",
-          backgroundSize: "26px 26px",
-          animation: "grid-pulse 7s ease-in-out infinite",
-        }}
-        aria-hidden="true"
-      />
-      {/* ambient glow field */}
-      <div
-        className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[520px] rounded-full blur-[120px]"
-        style={{
-          background: "radial-gradient(circle, #22E67A, transparent 70%)",
-          animation: "drift-a 22s ease-in-out infinite",
-        }}
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute bottom-0 right-0 h-[420px] w-[420px] rounded-full blur-[110px]"
-        style={{
-          background: "radial-gradient(circle, #7C6CFF, transparent 70%)",
-          animation: "drift-b 26s ease-in-out infinite",
-        }}
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute left-[62%] top-[38%] h-[380px] w-[380px] rounded-full blur-[120px]"
-        style={{
-          background: "radial-gradient(circle, #F5B94D, transparent 70%)",
-          animation: "drift-c 30s ease-in-out infinite",
+          backgroundImage:
+            "linear-gradient(rgba(0,255,65,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,65,0.045) 1px, transparent 1px)",
+          backgroundSize: "50px 50px",
+          maskImage: "radial-gradient(ellipse at center, rgba(0,0,0,0.8) 25%, transparent 70%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, rgba(0,0,0,0.8) 25%, transparent 70%)",
+          animation: "cyber-grid-pulse 8s ease-in-out infinite",
         }}
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center">
+      {/* Perspective grid floor */}
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-[42vh]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(0,255,65,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,65,0.06) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+          transform: "perspective(500px) rotateX(55deg)",
+          transformOrigin: "bottom center",
+          maskImage: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 75%)",
+          WebkitMaskImage: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 75%)",
+          animation: "grid-floor-pulse 8s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Soft aurora glow band */}
+      <div
+        className="pointer-events-none absolute left-0 right-0 h-[60px] blur-[25px]"
+        style={{
+          top: "36%",
+          background: "linear-gradient(90deg, transparent 8%, rgba(57,255,20,0.06) 30%, rgba(0,255,65,0.12) 50%, rgba(57,255,20,0.06) 70%, transparent 92%)",
+          animation: "aurora-breathe 6s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Scanline overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,0.12) 2px, rgba(0,255,65,0.12) 4px)",
+          animation: "scanline-scroll 10s linear infinite",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Radial glow fog */}
+      <div
+        className="pointer-events-none absolute -top-40 left-1/2 h-[700px] w-[700px] rounded-full blur-[160px]"
+        style={{
+          background: "radial-gradient(circle, rgba(57,255,20,0.22), transparent 65%)",
+          animation: "drift-a 24s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-0 right-0 h-[500px] w-[500px] rounded-full blur-[150px]"
+        style={{
+          background: "radial-gradient(circle, rgba(0,255,65,0.15), transparent 65%)",
+          animation: "drift-b 28s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute left-[60%] top-[35%] h-[420px] w-[420px] rounded-full blur-[140px]"
+        style={{
+          background: "radial-gradient(circle, rgba(57,255,20,0.1), transparent 65%)",
+          animation: "drift-c 32s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+      {/* Deep-green ambient glow bottom-left */}
+      <div
+        className="pointer-events-none absolute -bottom-20 -left-20 h-[400px] w-[400px] rounded-full blur-[150px]"
+        style={{
+          background: "radial-gradient(circle, rgba(0,70,18,0.22), transparent 65%)",
+          animation: "drift-d 30s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Vignette */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, transparent 42%, rgba(0,2,0,0.4) 70%, rgba(0,0,0,0.8) 100%)",
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-20 mx-auto flex w-full max-w-6xl flex-col items-center">
         {/* header */}
         <div
-          className="mb-12 flex flex-col items-center text-center"
+          className="mb-8 flex flex-col items-center text-center sm:mb-12"
           style={{ animation: "fade-in-down 0.7s ease-out" }}
         >
-          <div className="mb-4 flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-[#9A9AA2]">
-            <EqualizerBars active={false} barHeight="h-2.5" className="text-[#22E67A]" />
+          <div
+            className="mb-4 flex items-center gap-2 rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em]"
+            style={{
+              border: "1px solid rgba(57,255,20,0.25)",
+              background: "rgba(57,255,20,0.06)",
+              color: "#39FF14",
+              boxShadow:
+                "0 0 20px -8px rgba(57,255,20,0.4), inset 0 0 12px -4px rgba(57,255,20,0.1)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <EqualizerBars active={true} barHeight="h-2.5" className="text-[#39FF14]" />
             Audio Intelligence
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-            AI Hit{" "}
-            <span className="bg-gradient-to-r from-[#22E67A] to-[#8CFFC2] bg-clip-text text-transparent">
-              Predictor
+          <h1
+            className="text-2xl font-black uppercase tracking-wider xs:text-3xl sm:text-4xl md:text-5xl"
+            style={{
+              fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+              letterSpacing: "0.08em",
+            }}
+          >
+            <span
+              style={{
+                background: "linear-gradient(90deg, #E0E0E0 0%, #E0E0E0 35%, #39FF14 50%, #E0E0E0 65%, #E0E0E0 100%)",
+                backgroundSize: "300% 100%",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                animation: "title-gradient-cycle 3s ease-in-out infinite",
+                filter: "drop-shadow(0 0 20px rgba(57,255,20,0.15))",
+              }}
+            >
+              AI HIT PREDICTOR
             </span>
           </h1>
-          <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-[#9A9AA2]">
+          <p
+            className="mt-3 max-w-sm text-[14px] leading-relaxed"
+            style={{ color: "rgba(57,255,20,0.5)", letterSpacing: "0.04em" }}
+          >
             Drop a track and let the model read its tempo, energy, and groove to call whether it&apos;s hit-bound.
           </p>
+
+          {/* Decorative line */}
+          <div className="mt-5 flex items-center gap-3">
+            <div className="h-px w-16" style={{ background: "linear-gradient(90deg, transparent, rgba(57,255,20,0.4))" }} />
+            <div className="h-1.5 w-1.5 rotate-45" style={{ background: "#39FF14", boxShadow: "0 0 8px rgba(57,255,20,0.8)" }} />
+            <div className="h-px w-16" style={{ background: "linear-gradient(90deg, rgba(57,255,20,0.4), transparent)" }} />
+          </div>
         </div>
 
         <div
-          className="grid w-full gap-8 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start"
+          className="grid w-full gap-6 sm:gap-8 lg:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] lg:items-start"
           style={{ animation: "fade-up 0.7s ease-out 0.1s both" }}
         >
           {/* left column — upload, preview, analyze */}
           <div className="flex flex-col items-center gap-6">
             {/* dropzone */}
             <input
-          ref={inputRef}
-          type="file"
-          accept=".mp3,.wav,audio/mpeg,audio/wav"
-          onChange={handleInputChange}
-          className="hidden"
-        />
-        <audio
-          ref={audioRef}
-          src={audioUrl ?? undefined}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-          className="hidden"
-        />
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          className={`group w-full cursor-pointer rounded-3xl border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#22E67A]/60 ${
-            isDragging
-              ? "scale-[1.01] border-[#22E67A]/70 bg-[#22E67A]/[0.06]"
-              : file
-              ? "border-[#22E67A]/30 bg-[#22E67A]/[0.04]"
-              : "border-dashed border-white/15 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.035]"
-          }`}
-        >
-          {!file ? (
-            <div className="flex flex-col items-center gap-3 px-8 py-14 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[#9A9AA2] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-105 group-hover:text-[#22E67A]">
-                <IconUpload />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-[#F2F2F5]">
-                  Drag &amp; drop your track here
-                </p>
-                <p className="mt-1 text-xs text-[#6C6C74]">MP3 or WAV · click to browse</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3.5 px-6 py-6">
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={togglePlay}
-                  aria-label={isPlaying ? "Pause preview" : "Play preview"}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#22E67A]/10 text-[#22E67A] transition-all duration-200 hover:scale-110 hover:bg-[#22E67A]/20 active:scale-95"
-                >
-                  {isPlaying ? <IconPause /> : <IconPlay />}
-                </button>
-                <div className="min-w-0 flex-1 text-left">
-                  <p className="truncate text-sm font-medium text-[#F2F2F5]">{file.name}</p>
-                  <p className="mt-0.5 text-xs text-[#6C6C74]">{formatBytes(file.size)}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearFile}
-                  aria-label="Remove file"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#6C6C74] transition-all duration-200 hover:scale-110 hover:bg-white/10 hover:text-[#F2F2F5] active:scale-90"
-                >
-                  <IconX />
-                </button>
-              </div>
-
-              {/* preview scrubber */}
-              <div className="flex items-center gap-2.5 pl-[3.75rem]">
-                <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-[#6C6C74]">
-                  {formatTime(currentTime)}
-                </span>
-                {waveformPeaks ? (
-                  <Waveform
-                    peaks={waveformPeaks}
-                    progress={duration ? currentTime / duration : 0}
-                    onSeek={seekToRatio}
-                  />
-                ) : (
+              ref={inputRef}
+              type="file"
+              accept=".mp3,.wav,audio/mpeg,audio/wav"
+              onChange={handleInputChange}
+              className="hidden"
+            />
+            <audio
+              ref={audioRef}
+              src={audioUrl ?? undefined}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              className="hidden"
+            />
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => inputRef.current?.click()}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={`group w-full cursor-pointer rounded-2xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14]/60 ${
+                isDragging
+                  ? "scale-[1.02]"
+                  : file
+                  ? ""
+                  : "hover:scale-[1.01]"
+              }`}
+              style={{
+                border: isDragging
+                  ? "2px solid rgba(57,255,20,0.7)"
+                  : file
+                  ? "1px solid rgba(57,255,20,0.25)"
+                  : "2px dashed rgba(57,255,20,0.2)",
+                background: isDragging
+                  ? "rgba(57,255,20,0.08)"
+                  : file
+                  ? "linear-gradient(135deg, rgba(57,255,20,0.04), rgba(0,0,0,0.6))"
+                  : "linear-gradient(135deg, rgba(57,255,20,0.02), rgba(0,0,0,0.4))",
+                backdropFilter: "blur(20px)",
+                boxShadow: isDragging
+                  ? "0 0 40px -10px rgba(57,255,20,0.5), inset 0 0 30px -10px rgba(57,255,20,0.1)"
+                  : file
+                  ? "0 0 30px -12px rgba(57,255,20,0.3), inset 0 1px 0 rgba(57,255,20,0.08)"
+                  : "inset 0 1px 0 rgba(255,255,255,0.03)",
+                animation: !file && !isDragging ? "border-dash-march 20s linear infinite" : undefined,
+              }}
+            >
+              {!file ? (
+                <div className="flex flex-col items-center gap-3 px-5 py-10 text-center sm:px-8 sm:py-14">
                   <div
-                    role="slider"
-                    aria-label="Seek preview"
-                    aria-valuemin={0}
-                    aria-valuemax={Math.round(duration)}
-                    aria-valuenow={Math.round(currentTime)}
-                    onClick={handleSeek}
-                    className="group/bar relative h-1.5 flex-1 cursor-pointer rounded-full bg-white/10"
+                    className="flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+                    style={{
+                      border: "1px solid rgba(57,255,20,0.2)",
+                      background: "rgba(57,255,20,0.06)",
+                      color: "rgba(57,255,20,0.5)",
+                      boxShadow: "0 0 20px -8px rgba(57,255,20,0.3)",
+                    }}
                   >
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-[#22E67A] transition-[width] group-hover/bar:bg-[#3EF092]"
-                      style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
-                    />
+                    <IconUpload />
                   </div>
-                )}
-                <span className="w-8 shrink-0 font-mono text-[10px] tabular-nums text-[#6C6C74]">
-                  {formatTime(duration)}
-                </span>
-              </div>
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-[#E0E0E0]">
+                      Drag &amp; drop your track here
+                    </p>
+                    <p className="mt-1 text-xs" style={{ color: "rgba(57,255,20,0.35)" }}>
+                      MP3 or WAV · click to browse
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3.5 px-6 py-6">
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={togglePlay}
+                      aria-label={isPlaying ? "Pause preview" : "Play preview"}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                      style={{
+                        background: "rgba(57,255,20,0.12)",
+                        border: "1px solid rgba(57,255,20,0.25)",
+                        color: "#39FF14",
+                        boxShadow: "0 0 15px -5px rgba(57,255,20,0.4)",
+                      }}
+                    >
+                      {isPlaying ? <IconPause /> : <IconPlay />}
+                    </button>
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className="truncate text-sm font-semibold text-[#E0E0E0]">{file.name}</p>
+                      <p className="mt-0.5 text-xs" style={{ color: "rgba(57,255,20,0.4)" }}>
+                        {formatBytes(file.size)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearFile}
+                      aria-label="Remove file"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200 hover:scale-110 active:scale-90"
+                      style={{
+                        color: "rgba(255,255,255,0.3)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <IconX />
+                    </button>
+                  </div>
+
+                  {/* preview scrubber */}
+                  <div className="flex items-center gap-2 pl-[3.25rem] sm:gap-2.5 sm:pl-[3.75rem]">
+                    <span
+                      className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums"
+                      style={{ color: "rgba(57,255,20,0.5)" }}
+                    >
+                      {formatTime(currentTime)}
+                    </span>
+                    {waveformPeaks ? (
+                      <Waveform
+                        peaks={waveformPeaks}
+                        progress={duration ? currentTime / duration : 0}
+                        onSeek={seekToRatio}
+                      />
+                    ) : (
+                      <div
+                        role="slider"
+                        aria-label="Seek preview"
+                        aria-valuemin={0}
+                        aria-valuemax={Math.round(duration)}
+                        aria-valuenow={Math.round(currentTime)}
+                        onClick={handleSeek}
+                        className="group/bar relative h-1.5 flex-1 cursor-pointer rounded-full"
+                        style={{ background: "rgba(57,255,20,0.08)" }}
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full transition-[width]"
+                          style={{
+                            width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                            background: "linear-gradient(90deg, #39FF14, #00FF41)",
+                            boxShadow: "0 0 10px rgba(57,255,20,0.5)",
+                          }}
+                        />
+                      </div>
+                    )}
+                    <span
+                      className="w-8 shrink-0 font-mono text-[10px] tabular-nums"
+                      style={{ color: "rgba(57,255,20,0.3)" }}
+                    >
+                      {formatTime(duration)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* action button */}
-        <button
-          type="button"
-          onClick={handleAnalyze}
-          disabled={!file || analyzing}
-          className={`relative mt-7 flex h-14 w-full max-w-xs items-center justify-center overflow-hidden rounded-full text-[15px] font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#22E67A]/60 disabled:cursor-not-allowed ${
-            !file
-              ? "bg-white/[0.06] text-[#6C6C74]"
-              : analyzing
-              ? "bg-[#1a3b28] text-[#8CFFC2]"
-              : "bg-[#22E67A] text-[#04140A] hover:-translate-y-0.5 hover:bg-[#3EF092] active:translate-y-0 active:scale-[0.98]"
-          }`}
-          style={
-            analyzing
-              ? { animation: "glow-pulse 1.6s ease-in-out infinite" }
-              : file
-              ? { boxShadow: "0 8px 30px -10px rgba(34,230,122,0.55)" }
-              : undefined
-          }
-        >
-          <span
-            className="pointer-events-none absolute inset-0 rounded-full"
-            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.18), transparent 55%)" }}
-            aria-hidden="true"
-          />
-          <span className="relative z-[1] flex items-center gap-2.5">
-            {analyzing ? (
-              <>
-                <EqualizerBars active barHeight="h-3.5" className="text-[#8CFFC2]" />
-                Analyzing track…
-              </>
-            ) : (
-              <>
-                Analyze Track
-                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-                  <path d="M9 6l8 6-8 6V6z" fill="currentColor" />
-                </svg>
-              </>
+            {/* action button */}
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={!file || analyzing}
+              className={`relative mt-5 flex h-12 w-full max-w-[280px] items-center justify-center overflow-hidden rounded-xl text-[13px] font-bold uppercase tracking-[0.12em] transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14]/60 disabled:cursor-not-allowed sm:mt-7 sm:h-14 sm:max-w-xs sm:text-[14px] ${
+                !file
+                  ? ""
+                  : analyzing
+                  ? ""
+                  : "hover:-translate-y-1 hover:scale-[1.02] active:translate-y-0 active:scale-[0.98]"
+              }`}
+              style={{
+                border: !file
+                  ? "1px solid rgba(255,255,255,0.06)"
+                  : analyzing
+                  ? "1px solid rgba(57,255,20,0.3)"
+                  : "1px solid rgba(57,255,20,0.6)",
+                background: !file
+                  ? "rgba(255,255,255,0.03)"
+                  : analyzing
+                  ? "rgba(57,255,20,0.08)"
+                  : "linear-gradient(135deg, #39FF14, #00CC10)",
+                color: !file
+                  ? "rgba(255,255,255,0.2)"
+                  : analyzing
+                  ? "#39FF14"
+                  : "#020204",
+                boxShadow: analyzing
+                  ? "0 0 30px -8px rgba(57,255,20,0.4)"
+                  : file
+                  ? "0 0 40px -10px rgba(57,255,20,0.6), inset 0 1px 0 rgba(255,255,255,0.2)"
+                  : "none",
+                animation: analyzing ? "neon-pulse 1.6s ease-in-out infinite" : undefined,
+              }}
+            >
+              {/* Button highlight overlay */}
+              {file && !analyzing && (
+                <span
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background: "linear-gradient(180deg, rgba(255,255,255,0.2), transparent 60%)",
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="relative z-[1] flex items-center gap-2.5">
+                {analyzing ? (
+                  <>
+                    <EqualizerBars active barHeight="h-3.5" className="text-[#39FF14]" />
+                    Analyzing track…
+                  </>
+                ) : (
+                  <>
+                    Analyze Track
+                    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
+                      <path d="M9 6l8 6-8 6V6z" fill="currentColor" />
+                    </svg>
+                  </>
+                )}
+              </span>
+            </button>
+
+            {/* error state */}
+            {result?.error && (
+              <div
+                className="mt-8 flex w-full items-start gap-3 rounded-xl px-5 py-4 text-sm"
+                style={{
+                  border: "1px solid rgba(255,49,49,0.25)",
+                  background: "rgba(255,49,49,0.06)",
+                  color: "#FF6B6B",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 0 20px -8px rgba(255,49,49,0.3)",
+                  animation: "fade-up 0.4s ease-out",
+                }}
+              >
+                <span className="mt-0.5 text-[#FF3131]">
+                  <IconMuted />
+                </span>
+                <span>{result.error}</span>
+              </div>
             )}
-          </span>
-        </button>
-
-        {/* error state */}
-        {result?.error && (
-          <div
-            className="mt-8 flex w-full items-start gap-3 rounded-2xl border border-[#E8785C]/25 bg-[#E8785C]/[0.06] px-5 py-4 text-sm text-[#F3B7A6]"
-            style={{ animation: "fade-up 0.4s ease-out" }}
-          >
-            <span className="mt-0.5 text-[#E8785C]">
-              <IconMuted />
-            </span>
-            <span>{result.error}</span>
-          </div>
-        )}
           </div>
 
           {/* right column — always-present prediction panel */}
           <div className="flex flex-1 flex-col items-center justify-center">
             {analyzing ? (
               <div
-                className="flex w-full max-w-md flex-col items-center gap-5 rounded-3xl border border-white/10 bg-white/[0.02] px-8 py-16 text-center lg:min-h-[460px] lg:justify-center"
+                className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl px-5 py-10 text-center sm:px-8 sm:py-16 lg:min-h-[400px] lg:justify-center"
                 style={{
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(57,255,20,0.15)",
+                  background: "linear-gradient(135deg, rgba(57,255,20,0.04), rgba(0,0,0,0.6))",
+                  backdropFilter: "blur(20px)",
+                  boxShadow:
+                    "0 0 40px -15px rgba(57,255,20,0.3), inset 0 1px 0 rgba(57,255,20,0.08)",
                   animation: "fade-up 0.4s ease-out",
                 }}
               >
                 <div className="relative flex h-24 w-24 items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-2 border-white/10" />
-                  <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#22E67A]" />
-                  <EqualizerBars active barHeight="h-5" className="text-[#22E67A]" />
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{ border: "2px solid rgba(57,255,20,0.1)" }}
+                  />
+                  <div
+                    className="absolute inset-0 animate-spin rounded-full"
+                    style={{
+                      border: "2px solid transparent",
+                      borderTopColor: "#39FF14",
+                      filter: "drop-shadow(0 0 8px rgba(57,255,20,0.6))",
+                    }}
+                  />
+                  <EqualizerBars active barHeight="h-5" className="text-[#39FF14]" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-[#8CFFC2]">Listening to the track…</p>
-                  <p className="mt-1 text-xs text-[#6C6C74]">
+                  <p className="text-sm font-bold uppercase tracking-wide text-[#39FF14]">
+                    Listening to the track…
+                  </p>
+                  <p className="mt-1 text-xs" style={{ color: "rgba(57,255,20,0.35)" }}>
                     Reading tempo, energy, and genre cues
                   </p>
                 </div>
               </div>
             ) : hasPrediction ? (
-              <div className="flex w-full max-w-md flex-col items-center">
+              <div className="flex w-full max-w-md flex-col items-center px-1">
                 {/* detected genre badge */}
                 {result?.genre && (
                   <div
-                    className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em]"
+                    className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em]"
                     style={{
-                      borderColor: "rgba(34,230,122,0.3)",
-                      background: "rgba(34,230,122,0.08)",
-                      color: "#8CFFC2",
+                      border: "1px solid rgba(57,255,20,0.3)",
+                      background: "rgba(57,255,20,0.08)",
+                      color: "#39FF14",
                       backdropFilter: "blur(12px)",
                       boxShadow:
-                        "0 0 30px -14px rgba(34,230,122,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
+                        "0 0 30px -14px rgba(57,255,20,0.6), inset 0 0 12px -4px rgba(57,255,20,0.1)",
                       animation: "fade-up 0.4s ease-out",
                     }}
                   >
@@ -826,135 +1243,222 @@ export default function HitPredictorConsole() {
 
                 {/* results card */}
                 <div
-                  className={`w-full overflow-hidden rounded-3xl border p-8 ${
+                  className={`w-full overflow-hidden rounded-2xl p-5 sm:p-8 ${
                     result?.genre ? "mt-4" : "mt-0"
                   }`}
                   style={{
                     animation: "fade-up 0.5s ease-out",
-                    borderColor: isHit ? "rgba(34,230,122,0.28)" : "rgba(232,120,92,0.22)",
+                    border: `1px solid ${isHit ? "rgba(57,255,20,0.3)" : "rgba(255,49,49,0.22)"}`,
                     background: isHit
-                      ? "linear-gradient(180deg, rgba(34,230,122,0.09), rgba(255,255,255,0.02))"
-                      : "linear-gradient(180deg, rgba(232,120,92,0.06), rgba(255,255,255,0.02))",
+                      ? "linear-gradient(135deg, rgba(57,255,20,0.08), rgba(0,0,0,0.7))"
+                      : "linear-gradient(135deg, rgba(255,49,49,0.04), rgba(0,0,0,0.7))",
                     boxShadow: isHit
-                      ? "0 0 70px -25px rgba(34,230,122,0.55), inset 0 1px 0 rgba(255,255,255,0.07)"
-                      : "0 0 50px -25px rgba(232,120,92,0.35), inset 0 1px 0 rgba(255,255,255,0.07)",
-                    backdropFilter: "blur(20px)",
+                      ? "0 0 60px -20px rgba(57,255,20,0.5), inset 0 1px 0 rgba(57,255,20,0.1), inset 0 0 30px -10px rgba(57,255,20,0.05)"
+                      : "0 0 50px -25px rgba(255,49,49,0.35), inset 0 1px 0 rgba(255,255,255,0.05)",
+                    backdropFilter: "blur(24px)",
                   }}
                 >
-            <div className="flex flex-col items-center text-center">
-              <span
-                className="mb-6 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em]"
-                style={{
-                  color: isHit ? "#22E67A" : "#E8785C",
-                  background: isHit ? "rgba(34,230,122,0.12)" : "rgba(232,120,92,0.1)",
-                }}
-              >
-                {isHit ? <IconSpark /> : <IconMuted />}
-                {isHit ? "Hit" : "Pass"}
-              </span>
-
-              {/* confidence ring */}
-              <div
-                className="relative flex h-40 w-40 items-center justify-center"
-                role="meter"
-                aria-label="Prediction confidence"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(confidence)}
-              >
-                <div
-                  className="absolute -inset-4 rounded-full opacity-35 blur-2xl"
-                  style={{ background: ringColor }}
-                  aria-hidden="true"
-                />
-                <div
-                  className="relative h-40 w-40 rounded-full"
-                  style={{
-                    background: `conic-gradient(${ringColor} ${
-                      displayConfidence * 3.6
-                    }deg, rgba(255,255,255,0.07) 0deg)`,
-                  }}
-                >
-                  <div
-                    className="absolute inset-[6px] flex flex-col items-center justify-center rounded-full bg-[#0b0b0d]"
-                    style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)" }}
-                  >
-                    <span className="font-mono text-3xl font-bold tabular-nums">
-                      {displayConfidence.toFixed(1)}
-                      <span className="text-lg text-[#6C6C74]">%</span>
+                  <div className="flex flex-col items-center text-center">
+                    <span
+                      className="mb-6 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-[0.16em]"
+                      style={{
+                        color: isHit ? "#39FF14" : "#FF3131",
+                        background: isHit ? "rgba(57,255,20,0.12)" : "rgba(255,49,49,0.1)",
+                        border: `1px solid ${isHit ? "rgba(57,255,20,0.25)" : "rgba(255,49,49,0.2)"}`,
+                        boxShadow: `0 0 15px -5px ${isHit ? "rgba(57,255,20,0.4)" : "rgba(255,49,49,0.3)"}`,
+                      }}
+                    >
+                      {isHit ? <IconSpark /> : <IconMuted />}
+                      {isHit ? "Hit" : "Pass"}
                     </span>
-                    <span className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[#6C6C74]">
-                      Confidence
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              {/* acoustic stats grid */}
-              {featureEntries.length > 0 && (
-                <div className="mt-8 w-full">
-                  <div className="mb-3 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6C6C74]">
-                    <span className="h-px flex-1 bg-white/10" />
-                    Acoustic Breakdown
-                    <span className="h-px flex-1 bg-white/10" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {featureEntries.map(([key, value], i) => {
-                      const meta = FEATURE_META[key] ?? {
-                        label: key,
-                        icon: <IconWave />,
-                        format: (v: number) => `${v}`,
-                        accent: "#9A9AA2",
-                        meter: () => 0,
-                      };
-                      return (
+                    {/* confidence ring */}
+                    <div
+                      className="relative flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40 md:h-44 md:w-44"
+                      role="meter"
+                      aria-label="Prediction confidence"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(confidence)}
+                    >
+                      {/* Glow behind ring */}
+                      <div
+                        className="absolute -inset-6 rounded-full opacity-40 blur-3xl"
+                        style={{
+                          background: ringColor,
+                          animation: "ring-glow-pulse 2s ease-in-out infinite",
+                        }}
+                        aria-hidden="true"
+                      />
+                      {/* Outer decorative ring */}
+                      <div
+                        className="absolute -inset-2 rounded-full"
+                        style={{
+                          border: `1px solid ${isHit ? "rgba(57,255,20,0.1)" : "rgba(255,49,49,0.08)"}`,
+                        }}
+                        aria-hidden="true"
+                      />
+                      
+                      <div
+                        className="relative h-32 w-32 rounded-full sm:h-40 sm:w-40 md:h-44 md:w-44"
+                        style={{
+                          background: `conic-gradient(${ringColor} ${
+                            displayConfidence * 3.6
+                          }deg, rgba(255,255,255,0.04) 0deg)`,
+                          filter: `drop-shadow(0 0 12px ${isHit ? "rgba(57,255,20,0.4)" : "rgba(255,49,49,0.3)"})`,
+                        }}
+                      >
                         <div
-                          key={key}
-                          className="flex flex-col items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-2 py-4 transition-all duration-300 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.05]"
-                          style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)" }}
+                          className="absolute inset-[6px] flex flex-col items-center justify-center rounded-full"
+                          style={{
+                            background: "linear-gradient(135deg, #0a0a0c, #060608)",
+                            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 20px -8px ${
+                              isHit ? "rgba(57,255,20,0.1)" : "rgba(255,49,49,0.08)"
+                            }`,
+                          }}
                         >
-                          <span style={{ color: meta.accent }}>{meta.icon}</span>
-                          <span className="font-mono text-sm font-semibold tabular-nums text-[#F2F2F5]">
-                            {meta.format(value)}
+                          <span
+                            className="font-mono text-2xl font-black tabular-nums sm:text-3xl"
+                            style={{
+                              color: ringColor,
+                              textShadow: `0 0 20px ${isHit ? "rgba(57,255,20,0.5)" : "rgba(255,49,49,0.4)"}`,
+                              letterSpacing: "-0.02em",
+                            }}
+                          >
+                            {displayConfidence.toFixed(1)}
+                            <span
+                              className="text-lg"
+                              style={{ color: "rgba(255,255,255,0.25)" }}
+                            >
+                              %
+                            </span>
                           </span>
-                          <span className="text-[10px] uppercase tracking-wide text-[#6C6C74]">
-                            {meta.label}
+                          <span
+                            className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em]"
+                            style={{ color: "rgba(57,255,20,0.4)" }}
+                          >
+                            Confidence
                           </span>
-                          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                            <div
-                              className="h-full rounded-full transition-[width] duration-700 ease-out"
-                              style={{
-                                width: statsRevealed ? `${meta.meter(value)}%` : "0%",
-                                background: meta.accent,
-                                transitionDelay: `${i * 110}ms`,
-                              }}
-                            />
-                          </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
+
+                    {/* acoustic stats grid */}
+                    {featureEntries.length > 0 && (
+                      <div className="mt-8 w-full">
+                        <div
+                          className="mb-3 flex items-center gap-3 text-[9px] font-bold uppercase tracking-[0.2em]"
+                          style={{ color: "rgba(57,255,20,0.4)" }}
+                        >
+                          <span
+                            className="h-px flex-1"
+                            style={{ background: "rgba(57,255,20,0.1)" }}
+                          />
+                          Acoustic Breakdown
+                          <span
+                            className="h-px flex-1"
+                            style={{ background: "rgba(57,255,20,0.1)" }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {featureEntries.map(([key, value], i) => {
+                            const meta = FEATURE_META[key] ?? {
+                              label: key,
+                              icon: <IconWave />,
+                              format: (v: number) => `${v}`,
+                              accent: "#9A9AA2",
+                              meter: () => 0,
+                            };
+                            return (
+                              <div
+                                key={key}
+                                className="flex flex-col items-center gap-2 rounded-xl px-2 py-4 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02]"
+                                style={{
+                                  border: "1px solid rgba(57,255,20,0.1)",
+                                  background:
+                                    "linear-gradient(135deg, rgba(57,255,20,0.03), rgba(0,0,0,0.4))",
+                                  backdropFilter: "blur(12px)",
+                                  boxShadow:
+                                    "inset 0 1px 0 rgba(57,255,20,0.05), 0 0 15px -8px rgba(57,255,20,0.1)",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color: meta.accent,
+                                    filter: `drop-shadow(0 0 6px ${meta.accent}40)`,
+                                  }}
+                                >
+                                  {meta.icon}
+                                </span>
+                                <span
+                                  className="font-mono text-sm font-bold tabular-nums"
+                                  style={{
+                                    color: "#E0E0E0",
+                                    textShadow: "0 0 10px rgba(255,255,255,0.1)",
+                                  }}
+                                >
+                                  {meta.format(value)}
+                                </span>
+                                <span
+                                  className="text-[9px] font-bold uppercase tracking-[0.15em]"
+                                  style={{ color: "rgba(57,255,20,0.35)" }}
+                                >
+                                  {meta.label}
+                                </span>
+                                <div
+                                  className="mt-1 h-1 w-full overflow-hidden rounded-full"
+                                  style={{ background: "rgba(57,255,20,0.06)" }}
+                                >
+                                  <div
+                                    className="h-full rounded-full transition-[width] duration-700 ease-out"
+                                    style={{
+                                      width: statsRevealed ? `${meta.meter(value)}%` : "0%",
+                                      background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}99)`,
+                                      boxShadow: `0 0 8px ${meta.accent}60`,
+                                      transitionDelay: `${i * 110}ms`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
               </div>
             ) : (
               <div
-                className="flex w-full max-w-md flex-col items-center gap-4 rounded-3xl border border-dashed border-white/10 bg-white/[0.015] px-8 py-16 text-center lg:min-h-[460px] lg:justify-center"
-                style={{ animation: "fade-up 0.4s ease-out" }}
+                className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl px-5 py-10 text-center sm:px-8 sm:py-16 lg:min-h-[400px] lg:justify-center"
+                style={{
+                  border: "1px dashed rgba(57,255,20,0.12)",
+                  background: "rgba(57,255,20,0.02)",
+                  backdropFilter: "blur(12px)",
+                  animation: "fade-up 0.4s ease-out",
+                }}
               >
                 <div
-                  className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/25"
-                  style={{ animation: "float 4s ease-in-out infinite" }}
+                  className="flex h-16 w-16 items-center justify-center rounded-xl"
+                  style={{
+                    border: "1px solid rgba(57,255,20,0.1)",
+                    background: "rgba(57,255,20,0.04)",
+                    animation: "float 4s ease-in-out infinite",
+                  }}
                 >
-                  <EqualizerBars active={false} barHeight="h-5" className="text-white/20" />
+                  <EqualizerBars active={false} barHeight="h-5" className="text-[#39FF14]/20" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-[#9A9AA2]">
+                  <p
+                    className="text-sm font-semibold uppercase tracking-wide"
+                    style={{ color: "rgba(57,255,20,0.4)" }}
+                  >
                     Your prediction will land here
                   </p>
-                  <p className="mt-1 max-w-[240px] text-xs text-[#6C6C74]">
+                  <p
+                    className="mt-1 max-w-[240px] text-xs"
+                    style={{ color: "rgba(57,255,20,0.2)" }}
+                  >
                     Upload a track and hit analyze to see the genre, hit score, and acoustic
                     breakdown.
                   </p>
@@ -966,11 +1470,20 @@ export default function HitPredictorConsole() {
 
         {/* recent analyses — only appears once you've actually used the tool */}
         {history.length > 0 && (
-          <div className="mt-14 w-full">
-            <div className="mb-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6C6C74]">
-              <span className="h-px flex-1 bg-white/10" />
+          <div className="mt-10 w-full sm:mt-14">
+            <div
+              className="mb-4 flex items-center gap-3 text-[9px] font-bold uppercase tracking-[0.2em]"
+              style={{ color: "rgba(57,255,20,0.4)" }}
+            >
+              <span
+                className="h-px flex-1"
+                style={{ background: "rgba(57,255,20,0.1)" }}
+              />
               Recent Analyses
-              <span className="h-px flex-1 bg-white/10" />
+              <span
+                className="h-px flex-1"
+                style={{ background: "rgba(57,255,20,0.1)" }}
+              />
             </div>
             <div className="flex w-full gap-3 overflow-x-auto pb-2">
               {history.map((entry) => {
@@ -981,34 +1494,51 @@ export default function HitPredictorConsole() {
                     key={entry.id}
                     type="button"
                     onClick={() => setResult(entry.result)}
-                    className={`flex w-[190px] shrink-0 flex-col gap-2 rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-1 active:scale-[0.98] ${
-                      isActive
-                        ? "border-[#22E67A]/50 bg-[#22E67A]/[0.06]"
-                        : "border-white/8 bg-white/[0.03] hover:border-white/20"
-                    }`}
-                    style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)" }}
+                    className="flex min-w-[160px] max-w-[190px] shrink-0 flex-col gap-2 rounded-xl p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] sm:min-w-[190px] sm:p-4"
+                    style={{
+                      border: isActive
+                        ? "1px solid rgba(57,255,20,0.4)"
+                        : "1px solid rgba(57,255,20,0.08)",
+                      background: isActive
+                        ? "rgba(57,255,20,0.08)"
+                        : "linear-gradient(135deg, rgba(57,255,20,0.02), rgba(0,0,0,0.4))",
+                      backdropFilter: "blur(12px)",
+                      boxShadow: isActive
+                        ? "0 0 20px -8px rgba(57,255,20,0.4), inset 0 0 12px -4px rgba(57,255,20,0.05)"
+                        : "inset 0 1px 0 rgba(57,255,20,0.03)",
+                    }}
                   >
                     <div className="flex items-center justify-between">
                       <span
-                        className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                        className="rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide"
                         style={{
-                          color: entryIsHit ? "#22E67A" : "#E8785C",
+                          color: entryIsHit ? "#39FF14" : "#FF3131",
                           background: entryIsHit
-                            ? "rgba(34,230,122,0.12)"
-                            : "rgba(232,120,92,0.1)",
+                            ? "rgba(57,255,20,0.12)"
+                            : "rgba(255,49,49,0.1)",
+                          border: `1px solid ${entryIsHit ? "rgba(57,255,20,0.2)" : "rgba(255,49,49,0.15)"}`,
                         }}
                       >
                         {entryIsHit ? "Hit" : "Pass"}
                       </span>
-                      <span className="font-mono text-xs text-[#9A9AA2]">
+                      <span
+                        className="font-mono text-xs font-bold"
+                        style={{
+                          color: "rgba(57,255,20,0.6)",
+                          textShadow: "0 0 8px rgba(57,255,20,0.3)",
+                        }}
+                      >
                         {(entry.result.confidence ?? 0).toFixed(0)}%
                       </span>
                     </div>
-                    <p className="truncate text-xs font-medium text-[#F2F2F5]">
+                    <p className="truncate text-xs font-semibold text-[#E0E0E0]">
                       {entry.fileName}
                     </p>
                     {entry.result.genre && (
-                      <p className="truncate text-[10px] uppercase tracking-wide text-[#6C6C74]">
+                      <p
+                        className="truncate text-[9px] font-bold uppercase tracking-[0.15em]"
+                        style={{ color: "rgba(57,255,20,0.3)" }}
+                      >
                         {entry.result.genre}
                       </p>
                     )}
@@ -1018,6 +1548,13 @@ export default function HitPredictorConsole() {
             </div>
           </div>
         )}
+
+        {/* Footer branding */}
+        <div className="mt-10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] sm:mt-16" style={{ color: "rgba(57,255,20,0.15)" }}>
+          <div className="h-px w-8" style={{ background: "rgba(57,255,20,0.1)" }} />
+          Neural Audio Engine v2.0
+          <div className="h-px w-8" style={{ background: "rgba(57,255,20,0.1)" }} />
+        </div>
       </div>
 
       <style>{`
@@ -1025,29 +1562,49 @@ export default function HitPredictorConsole() {
           0%, 100% { transform: scaleY(0.35); }
           50% { transform: scaleY(1); }
         }
-        @keyframes glow-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(34,230,122,0.35); }
-          50% { box-shadow: 0 0 0 10px rgba(34,230,122,0); }
+        @keyframes neon-pulse {
+          0%, 100% { box-shadow: 0 0 20px -5px rgba(57,255,20,0.4), inset 0 0 12px -4px rgba(57,255,20,0.1); }
+          50% { box-shadow: 0 0 40px -5px rgba(57,255,20,0.6), inset 0 0 20px -4px rgba(57,255,20,0.15); }
+        }
+        @keyframes ring-glow-pulse {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.05); }
         }
         @keyframes fade-up {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes drift-a {
-          0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.28; }
-          50% { transform: translate(-50%, 24px) scale(1.08); opacity: 0.38; }
+          0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.25; }
+          50% { transform: translate(-50%, 24px) scale(1.08); opacity: 0.4; }
         }
         @keyframes drift-b {
-          0%, 100% { transform: translate(33%, 33%) scale(1); opacity: 0.18; }
-          50% { transform: translate(27%, 27%) scale(1.08); opacity: 0.26; }
+          0%, 100% { transform: translate(33%, 33%) scale(1); opacity: 0.15; }
+          50% { transform: translate(27%, 27%) scale(1.05); opacity: 0.22; }
         }
         @keyframes drift-c {
-          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.14; }
-          50% { transform: translate(-24px, 18px) scale(1.12); opacity: 0.22; }
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.08; }
+          50% { transform: translate(-18px, 14px) scale(1.06); opacity: 0.14; }
         }
-        @keyframes grid-pulse {
-          0%, 100% { opacity: 0.14; }
-          50% { opacity: 0.22; }
+        @keyframes drift-d {
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.12; }
+          50% { transform: translate(14px, -10px) scale(1.05); opacity: 0.2; }
+        }
+        @keyframes aurora-breathe {
+          0%, 100% { opacity: 0.5; transform: scaleX(0.96); }
+          50% { opacity: 0.85; transform: scaleX(1); }
+        }
+        @keyframes grid-floor-pulse {
+          0%, 100% { opacity: 0.8; }
+          50% { opacity: 1; }
+        }
+        @keyframes cyber-grid-pulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+        @keyframes scanline-scroll {
+          from { transform: translateY(0); }
+          to { transform: translateY(100px); }
         }
         @keyframes fade-in-down {
           from { opacity: 0; transform: translateY(-10px); }
@@ -1057,9 +1614,17 @@ export default function HitPredictorConsole() {
           from { transform: scaleY(0); }
           to { transform: scaleY(1); }
         }
+        @keyframes title-gradient-cycle {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
         @keyframes float {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-5px); }
+        }
+        @keyframes border-dash-march {
+          to { background-position: 100% 100%; }
         }
         @media (prefers-reduced-motion: reduce) {
           * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
