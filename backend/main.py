@@ -123,17 +123,17 @@ async def predict_audio(file: UploadFile = File(...)):
             'hype_index': (energy * tempo) / 100
         }
 
-        # --- 3. HIT PREDICTION & AGGRESSIVE CONFIDENCE BOOST ---
+        # --- 3. HIT PREDICTION ---
         hit_df = pd.DataFrame([input_data])[hit_model.feature_names_in_]
+        
+        # Get the raw probability of the song being a hit (Class 1)
         raw_prob = hit_model.predict_proba(hit_df)[0][1]
 
-        # Shift sigmoid curve left to raise average probabilities
-        scaled_hit_prob = 1 / (1 + np.exp(-12 * (raw_prob - 0.20)))
-
-        # Add flat booster and raise floor to 78%
-        hit_confidence = round(float(scaled_hit_prob) * 100, 2) + 15.5
-        final_confidence = max(78.0, min(99.2, hit_confidence))
-        is_hit = int(final_confidence >= 78.0)
+        # Convert to a standard 0-100 percentage
+        final_confidence = round(float(raw_prob) * 100, 2)
+        
+        # Standard ML threshold: If it's 50% or higher, it's a Hit. Otherwise, Pass.
+        is_hit = int(final_confidence >= 50.0)
 
         # Cleanup
         os.remove(temp_file_path)
