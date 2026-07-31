@@ -123,17 +123,25 @@ async def predict_audio(file: UploadFile = File(...)):
             'hype_index': (energy * tempo) / 100
         }
 
-        # --- 3. HIT PREDICTION ---
+       # --- 3. HIT PREDICTION & DYNAMIC CONFIDENCE BOOST ---
         hit_df = pd.DataFrame([input_data])[hit_model.feature_names_in_]
         
-        # Get the raw probability of the song being a hit (Class 1)
-        raw_prob = hit_model.predict_proba(hit_df)[0][1]
+        # Get the raw probability of the song being a hit (0.0 to 1.0)
+        raw_prob = float(hit_model.predict_proba(hit_df)[0][1])
 
-        # Convert to a standard 0-100 percentage
-        final_confidence = round(float(raw_prob) * 100, 2)
+        # Step 1: Decide Hit or Pass based on the real threshold
+        is_hit = int(raw_prob >= 0.5)
+
+        # Step 2: Get the model's true confidence (Always between 0.5 and 1.0)
+        # If raw_prob is 0.1 (Pass), true_confidence is 0.9 (90% confident it's a pass)
+        true_confidence = raw_prob if is_hit else (1.0 - raw_prob)
+
+        # Step 3: The "Hype" Booster! 
+        # Map the true confidence (0.5 - 1.0) to an artificially high range (76.0 - 99.0)
+        # This keeps the variance so every song is different, but keeps the numbers high.
+        boosted_confidence = 76.0 + ((true_confidence - 0.5) * 2.0 * 23.0)
         
-        # Standard ML threshold: If it's 50% or higher, it's a Hit. Otherwise, Pass.
-        is_hit = int(final_confidence >= 50.0)
+        final_confidence = round(boosted_confidence, 2)
 
         # Cleanup
         os.remove(temp_file_path)
