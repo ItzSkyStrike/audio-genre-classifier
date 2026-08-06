@@ -122,11 +122,13 @@ function Waveform({
             key={i}
             className="flex-1 origin-bottom rounded-full transition-colors duration-150"
             style={{
-              height: `${Math.max(10, p * 100)}%`,
+              height: `${Math.max(15, p * 100)}%`,
               background: played
-                ? "linear-gradient(180deg, #4A90D9, #1A4E85)"
-                : "rgba(53,120,185,0.08)",
-              boxShadow: played ? "0 0 6px rgba(74,144,217,0.4)" : "none",
+                ? "linear-gradient(180deg, #60B5FF 0%, #257CE6 100%)"
+                : "rgba(58,159,255,0.24)",
+              boxShadow: played
+                ? "0 0 8px rgba(58,159,255,0.75)"
+                : "inset 0 1px 0 rgba(255,255,255,0.1)",
               animation: `bar-grow 0.4s ease-out ${i * 4}ms both`,
             }}
           />
@@ -305,28 +307,28 @@ const FEATURE_META: Record<
     label: "Tempo",
     icon: <IconTempo />,
     format: (v) => `${Math.round(v)} BPM`,
-    accent: "#8C7CFF",
+    accent: "#A06EE1", // Electric Violet
     meter: (v) => Math.max(0, Math.min(100, ((v - 40) / (200 - 40)) * 100)),
   },
   energy: {
     label: "Energy",
     icon: <IconBolt />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#4A90D9",
+    accent: "#FFB800", // Neon Gold
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
   danceability: {
     label: "Danceability",
     icon: <IconWave />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#1A4E85",
+    accent: "#00E5A3", // Cyber Emerald Green
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
   loudness: {
     label: "Loudness",
     icon: <IconSpeaker />,
     format: (v) => `${v.toFixed(1)} dB`,
-    accent: "#3D7BBF",
+    accent: "#00B4D8", // Vivid Cyan
     // backend reports loudness on the standard -60dB (silent) to 0dB (peak) scale
     meter: (v) => Math.max(0, Math.min(100, ((v - -60) / (0 - -60)) * 100)),
   },
@@ -334,14 +336,14 @@ const FEATURE_META: Record<
     label: "Acousticness",
     icon: <IconLeaf />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#7AAFE0",
+    accent: "#76E039", // Vibrant Lime Green
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
   valence: {
     label: "Mood",
     icon: <IconSmile />,
     format: (v) => `${Math.round(v * 100)}%`,
-    accent: "#4A8AC8",
+    accent: "#FF3385", // Neon Magenta / Pink
     meter: (v) => Math.max(0, Math.min(100, v * 100)),
   },
 };
@@ -622,7 +624,7 @@ export default function HitPredictorConsole() {
           peaks.push(max);
         }
         const maxPeak = Math.max(...peaks, 0.0001);
-        if (!cancelled) setWaveformPeaks(peaks.map((p) => Math.max(0.06, p / maxPeak)));
+        if (!cancelled) setWaveformPeaks(peaks.map((p) => Math.max(0.12, p / maxPeak)));
       } catch {
         if (!cancelled) setWaveformPeaks(null);
       }
@@ -761,7 +763,7 @@ export default function HitPredictorConsole() {
   const isHit = result?.is_hit === 1;
   const hasPrediction = !!result && !result.error && typeof result.is_hit === "number";
   const confidence = Math.max(0, Math.min(100, result?.confidence ?? 0));
-  const ringColor = isHit ? "#4A90D9" : "#FF3131";
+  const ringColor = isHit ? "#3A9FFF" : "#FF3131";
 
   const featureEntries = Object.entries(result?.extracted_features ?? {}).filter(
     ([, v]) => typeof v === "number"
@@ -771,7 +773,7 @@ export default function HitPredictorConsole() {
     <div
       className="relative min-h-screen overflow-hidden px-3 py-8 text-[#E0E0E0] sm:px-6 sm:py-12 md:py-16"
       style={{
-        background: "linear-gradient(165deg, #010206 0%, #020204 28%, #02050C 55%, #020204 100%)",
+        background: "linear-gradient(165deg, #010206 0%, #020204 28%, #030A17 55%, #020204 100%)",
       }}
     >
       {/* ---- Canvas particle layer ---- */}
@@ -784,11 +786,25 @@ export default function HitPredictorConsole() {
 
       {/* ===== ARC REACTOR BACKGROUND ===== */}
 
+      {/* Faded blue cyber grid */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-15"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(58,159,255,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(58,159,255,0.55) 1px, transparent 1px)",
+          backgroundSize: "55px 55px",
+          maskImage: "radial-gradient(ellipse at center, rgba(0,0,0,0.95) 45%, transparent 90%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, rgba(0,0,0,0.95) 45%, transparent 90%)",
+          animation: "cyber-grid-pulse 8s ease-in-out infinite",
+        }}
+        aria-hidden="true"
+      />
+
       {/* Deep radial glow from center — the reactor's ambient light */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: "radial-gradient(circle at 50% 50%, rgba(74,144,217,0.15) 0%, rgba(74,144,217,0.05) 25%, transparent 55%)",
+          background: "radial-gradient(circle at 50% 50%, rgba(58,159,255,0.15) 0%, rgba(58,159,255,0.05) 25%, transparent 55%)",
           animation: "reactor-core-breathe 4s ease-in-out infinite",
         }}
         aria-hidden="true"
@@ -798,8 +814,8 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[60px] w-[60px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          background: "radial-gradient(circle, rgba(200,225,255,0.35) 0%, rgba(74,144,217,0.2) 40%, transparent 70%)",
-          boxShadow: "0 0 60px 20px rgba(74,144,217,0.15), 0 0 120px 40px rgba(74,144,217,0.08)",
+          background: "radial-gradient(circle, rgba(200,225,255,0.35) 0%, rgba(58,159,255,0.2) 40%, transparent 70%)",
+          boxShadow: "0 0 60px 20px rgba(58,159,255,0.15), 0 0 120px 40px rgba(58,159,255,0.08)",
           animation: "reactor-core-breathe 4s ease-in-out infinite",
         }}
         aria-hidden="true"
@@ -809,8 +825,8 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[120px] w-[120px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          border: "1px solid rgba(74,144,217,0.2)",
-          boxShadow: "0 0 15px 2px rgba(74,144,217,0.08), inset 0 0 15px 2px rgba(74,144,217,0.05)",
+          border: "1px solid rgba(58,159,255,0.2)",
+          boxShadow: "0 0 15px 2px rgba(58,159,255,0.08), inset 0 0 15px 2px rgba(58,159,255,0.05)",
           animation: "reactor-ring-pulse 3s ease-in-out infinite",
         }}
         aria-hidden="true"
@@ -820,7 +836,7 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[220px] w-[220px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          background: "conic-gradient(from 0deg, transparent 0deg, rgba(74,144,217,0.12) 8deg, transparent 16deg, transparent 90deg, rgba(74,144,217,0.12) 98deg, transparent 106deg, transparent 180deg, rgba(74,144,217,0.12) 188deg, transparent 196deg, transparent 270deg, rgba(74,144,217,0.12) 278deg, transparent 286deg)",
+          background: "conic-gradient(from 0deg, transparent 0deg, rgba(58,159,255,0.12) 8deg, transparent 16deg, transparent 90deg, rgba(58,159,255,0.12) 98deg, transparent 106deg, transparent 180deg, rgba(58,159,255,0.12) 188deg, transparent 196deg, transparent 270deg, rgba(58,159,255,0.12) 278deg, transparent 286deg)",
           maskImage: "radial-gradient(circle, transparent 42%, black 44%, black 48%, transparent 50%)",
           WebkitMaskImage: "radial-gradient(circle, transparent 42%, black 44%, black 48%, transparent 50%)",
           animation: "reactor-spin-slow 20s linear infinite",
@@ -832,7 +848,7 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          border: "1px dashed rgba(74,144,217,0.1)",
+          border: "1px dashed rgba(58,159,255,0.1)",
           animation: "reactor-ring-pulse 5s ease-in-out infinite 1s",
         }}
         aria-hidden="true"
@@ -842,7 +858,7 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          background: "conic-gradient(from 45deg, transparent 0deg, rgba(74,144,217,0.08) 5deg, transparent 10deg, transparent 30deg, rgba(74,144,217,0.08) 35deg, transparent 40deg, transparent 60deg, rgba(74,144,217,0.08) 65deg, transparent 70deg, transparent 90deg, rgba(74,144,217,0.08) 95deg, transparent 100deg, transparent 120deg, rgba(74,144,217,0.08) 125deg, transparent 130deg, transparent 150deg, rgba(74,144,217,0.08) 155deg, transparent 160deg, transparent 180deg, rgba(74,144,217,0.08) 185deg, transparent 190deg, transparent 210deg, rgba(74,144,217,0.08) 215deg, transparent 220deg, transparent 240deg, rgba(74,144,217,0.08) 245deg, transparent 250deg, transparent 270deg, rgba(74,144,217,0.08) 275deg, transparent 280deg, transparent 300deg, rgba(74,144,217,0.08) 305deg, transparent 310deg, transparent 330deg, rgba(74,144,217,0.08) 335deg, transparent 340deg)",
+          background: "conic-gradient(from 45deg, transparent 0deg, rgba(58,159,255,0.08) 5deg, transparent 10deg, transparent 30deg, rgba(58,159,255,0.08) 35deg, transparent 40deg, transparent 60deg, rgba(58,159,255,0.08) 65deg, transparent 70deg, transparent 90deg, rgba(58,159,255,0.08) 95deg, transparent 100deg, transparent 120deg, rgba(58,159,255,0.08) 125deg, transparent 130deg, transparent 150deg, rgba(58,159,255,0.08) 155deg, transparent 160deg, transparent 180deg, rgba(58,159,255,0.08) 185deg, transparent 190deg, transparent 210deg, rgba(58,159,255,0.08) 215deg, transparent 220deg, transparent 240deg, rgba(58,159,255,0.08) 245deg, transparent 250deg, transparent 270deg, rgba(58,159,255,0.08) 275deg, transparent 280deg, transparent 300deg, rgba(58,159,255,0.08) 305deg, transparent 310deg, transparent 330deg, rgba(58,159,255,0.08) 335deg, transparent 340deg)",
           maskImage: "radial-gradient(circle, transparent 44%, black 45%, black 49%, transparent 50%)",
           WebkitMaskImage: "radial-gradient(circle, transparent 44%, black 45%, black 49%, transparent 50%)",
           animation: "reactor-spin-reverse 30s linear infinite",
@@ -854,8 +870,8 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          border: "1px solid rgba(74,144,217,0.06)",
-          boxShadow: "inset 0 0 30px 4px rgba(74,144,217,0.03)",
+          border: "1px solid rgba(58,159,255,0.06)",
+          boxShadow: "inset 0 0 30px 4px rgba(58,159,255,0.03)",
           animation: "reactor-ring-pulse 6s ease-in-out infinite 2s",
         }}
         aria-hidden="true"
@@ -865,7 +881,7 @@ export default function HitPredictorConsole() {
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          border: "1px solid rgba(74,144,217,0.03)",
+          border: "1px solid rgba(58,159,255,0.03)",
         }}
         aria-hidden="true"
       />
@@ -880,7 +896,7 @@ export default function HitPredictorConsole() {
             height: "400px",
             marginLeft: "-0.5px",
             marginTop: "-200px",
-            background: "linear-gradient(to bottom, transparent 10%, rgba(74,144,217,0.06) 30%, rgba(74,144,217,0.1) 50%, rgba(74,144,217,0.06) 70%, transparent 90%)",
+            background: "linear-gradient(to bottom, transparent 10%, rgba(58,159,255,0.06) 30%, rgba(58,159,255,0.1) 50%, rgba(58,159,255,0.06) 70%, transparent 90%)",
             transform: `rotate(${deg}deg)`,
           }}
           aria-hidden="true"
@@ -897,7 +913,7 @@ export default function HitPredictorConsole() {
             height: "900px",
             marginLeft: "-0.5px",
             marginTop: "-450px",
-            background: "linear-gradient(to bottom, transparent 5%, rgba(74,144,217,0.03) 35%, rgba(74,144,217,0.05) 50%, rgba(74,144,217,0.03) 65%, transparent 95%)",
+            background: "linear-gradient(to bottom, transparent 5%, rgba(58,159,255,0.03) 35%, rgba(58,159,255,0.05) 50%, rgba(58,159,255,0.03) 65%, transparent 95%)",
             transform: `rotate(${deg}deg)`,
           }}
           aria-hidden="true"
@@ -909,7 +925,7 @@ export default function HitPredictorConsole() {
         className="pointer-events-none absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(74,144,217,0.15) 2px, rgba(74,144,217,0.15) 4px)",
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(58,159,255,0.15) 2px, rgba(58,159,255,0.15) 4px)",
           animation: "scanline-scroll 10s linear infinite",
         }}
         aria-hidden="true"
@@ -934,15 +950,15 @@ export default function HitPredictorConsole() {
           <div
             className="mb-4 flex items-center gap-2 rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em]"
             style={{
-              border: "1px solid rgba(74,144,217,0.25)",
-              background: "rgba(74,144,217,0.16)",
-              color: "#4A90D9",
+              border: "1px solid rgba(58,159,255,0.25)",
+              background: "rgba(58,159,255,0.16)",
+              color: "#3A9FFF",
               boxShadow:
-                "0 0 20px -8px rgba(74,144,217,0.4), inset 0 0 12px -4px rgba(74,144,217,0.16)",
+                "0 0 20px -8px rgba(58,159,255,0.4), inset 0 0 12px -4px rgba(58,159,255,0.16)",
               backdropFilter: "blur(12px)",
             }}
           >
-            <EqualizerBars active={true} barHeight="h-2.5" className="text-[#4A90D9]" />
+            <EqualizerBars active={true} barHeight="h-2.5" className="text-[#3A9FFF]" />
             Audio Intelligence
           </div>
           <h1
@@ -954,12 +970,12 @@ export default function HitPredictorConsole() {
           >
             <span
               style={{
-                background: "linear-gradient(90deg, #E0E0E0 0%, #E0E0E0 35%, #4A90D9 50%, #E0E0E0 65%, #E0E0E0 100%)",
+                background: "linear-gradient(90deg, #E0E0E0 0%, #E0E0E0 35%, #3A9FFF 50%, #E0E0E0 65%, #E0E0E0 100%)",
                 backgroundSize: "300% 100%",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 animation: "title-gradient-cycle 3s ease-in-out infinite",
-                filter: "drop-shadow(0 0 20px rgba(74,144,217,0.22))",
+                filter: "drop-shadow(0 0 20px rgba(58,159,255,0.22))",
               }}
             >
               AI HIT PREDICTOR
@@ -967,16 +983,16 @@ export default function HitPredictorConsole() {
           </h1>
           <p
             className="mt-3 max-w-sm text-[14px] leading-relaxed"
-            style={{ color: "rgba(74,144,217,0.5)", letterSpacing: "0.04em" }}
+            style={{ color: "rgba(58,159,255,0.5)", letterSpacing: "0.04em" }}
           >
             Drop a track and let the model read its tempo, energy, and groove to call whether it&apos;s hit-bound.
           </p>
 
           {/* Decorative line */}
           <div className="mt-5 flex items-center gap-3">
-            <div className="h-px w-16" style={{ background: "linear-gradient(90deg, transparent, rgba(74,144,217,0.4))" }} />
-            <div className="h-1.5 w-1.5 rotate-45" style={{ background: "#4A90D9", boxShadow: "0 0 8px rgba(74,144,217,0.8)" }} />
-            <div className="h-px w-16" style={{ background: "linear-gradient(90deg, rgba(74,144,217,0.4), transparent)" }} />
+            <div className="h-px w-16" style={{ background: "linear-gradient(90deg, transparent, rgba(58,159,255,0.4))" }} />
+            <div className="h-1.5 w-1.5 rotate-45" style={{ background: "#3A9FFF", boxShadow: "0 0 8px rgba(58,159,255,0.8)" }} />
+            <div className="h-px w-16" style={{ background: "linear-gradient(90deg, rgba(58,159,255,0.4), transparent)" }} />
           </div>
         </div>
 
@@ -1012,7 +1028,7 @@ export default function HitPredictorConsole() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              className={`group w-full cursor-pointer rounded-2xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4A90D9]/60 ${
+              className={`group relative w-full cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A9FFF]/60 ${
                 isDragging
                   ? "scale-[1.02]"
                   : file
@@ -1020,34 +1036,49 @@ export default function HitPredictorConsole() {
                   : "hover:scale-[1.01]"
               }`}
               style={{
-                border: isDragging
-                  ? "2px solid rgba(74,144,217,0.7)"
-                  : file
-                  ? "1px solid rgba(74,144,217,0.25)"
-                  : "2px dashed rgba(74,144,217,0.2)",
                 background: isDragging
-                  ? "rgba(74,144,217,0.13)"
+                  ? "rgba(58,159,255,0.13)"
                   : file
-                  ? "linear-gradient(135deg, rgba(74,144,217,0.07), rgba(0,0,0,0.6))"
-                  : "linear-gradient(135deg, rgba(74,144,217,0.07), rgba(0,0,0,0.4))",
+                  ? "linear-gradient(135deg, rgba(58,159,255,0.07), rgba(0,0,0,0.6))"
+                  : "linear-gradient(135deg, rgba(58,159,255,0.07), rgba(0,0,0,0.4))",
                 backdropFilter: "blur(20px)",
                 boxShadow: isDragging
-                  ? "0 0 40px -10px rgba(74,144,217,0.5), inset 0 0 30px -10px rgba(74,144,217,0.16)"
+                  ? "0 0 40px -10px rgba(58,159,255,0.5), inset 0 0 30px -10px rgba(58,159,255,0.16)"
                   : file
-                  ? "0 0 30px -12px rgba(74,144,217,0.3), inset 0 1px 0 rgba(74,144,217,0.13)"
+                  ? "0 0 30px -12px rgba(58,159,255,0.3), inset 0 1px 0 rgba(58,159,255,0.13)"
                   : "inset 0 1px 0 rgba(255,255,255,0.03)",
-                animation: !file && !isDragging ? "border-dash-march 20s linear infinite" : undefined,
               }}
             >
+              {/* Spinning conic-gradient border */}
+              <div
+                className="pointer-events-none absolute -inset-[1px] -z-10 rounded-2xl"
+                style={{
+                  background: isDragging
+                    ? "conic-gradient(from var(--spin-angle, 0deg), #3A9FFF, transparent 40%, #3A9FFF 50%, transparent 90%, #3A9FFF)"
+                    : file
+                    ? "conic-gradient(from var(--spin-angle, 0deg), rgba(58,159,255,0.8), transparent 30%, rgba(58,159,255,0.4) 50%, transparent 80%, rgba(58,159,255,0.8))"
+                    : "conic-gradient(from var(--spin-angle, 0deg), rgba(58,159,255,0.5), transparent 25%, rgba(58,159,255,0.2) 50%, transparent 75%, rgba(58,159,255,0.5))",
+                  animation: "spin-border 3s linear infinite",
+                }}
+                aria-hidden="true"
+              />
+              {/* Inner background mask */}
+              <div
+                className="pointer-events-none absolute inset-[1px] -z-10 rounded-[calc(1rem-1px)]"
+                style={{
+                  background: "linear-gradient(135deg, #030A17, #020204)",
+                }}
+                aria-hidden="true"
+              />
               {!file ? (
                 <div className="flex flex-col items-center gap-3 px-5 py-10 text-center sm:px-8 sm:py-14">
                   <div
                     className="flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-110"
                     style={{
-                      border: "1px solid rgba(74,144,217,0.2)",
-                      background: "rgba(74,144,217,0.16)",
-                      color: "rgba(74,144,217,0.5)",
-                      boxShadow: "0 0 20px -8px rgba(74,144,217,0.3)",
+                      border: "1px solid rgba(58,159,255,0.2)",
+                      background: "rgba(58,159,255,0.16)",
+                      color: "rgba(58,159,255,0.5)",
+                      boxShadow: "0 0 20px -8px rgba(58,159,255,0.3)",
                     }}
                   >
                     <IconUpload />
@@ -1056,7 +1087,7 @@ export default function HitPredictorConsole() {
                     <p className="text-sm font-semibold uppercase tracking-wide text-[#E0E0E0]">
                       Drag &amp; drop your track here
                     </p>
-                    <p className="mt-1 text-xs" style={{ color: "rgba(74,144,217,0.35)" }}>
+                    <p className="mt-1 text-xs" style={{ color: "rgba(58,159,255,0.35)" }}>
                       MP3 or WAV · click to browse
                     </p>
                   </div>
@@ -1070,17 +1101,17 @@ export default function HitPredictorConsole() {
                       aria-label={isPlaying ? "Pause preview" : "Play preview"}
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
                       style={{
-                        background: "rgba(74,144,217,0.18)",
-                        border: "1px solid rgba(74,144,217,0.25)",
-                        color: "#4A90D9",
-                        boxShadow: "0 0 15px -5px rgba(74,144,217,0.4)",
+                        background: "rgba(58,159,255,0.18)",
+                        border: "1px solid rgba(58,159,255,0.25)",
+                        color: "#3A9FFF",
+                        boxShadow: "0 0 15px -5px rgba(58,159,255,0.4)",
                       }}
                     >
                       {isPlaying ? <IconPause /> : <IconPlay />}
                     </button>
                     <div className="min-w-0 flex-1 text-left">
                       <p className="truncate text-sm font-semibold text-[#E0E0E0]">{file.name}</p>
-                      <p className="mt-0.5 text-xs" style={{ color: "rgba(74,144,217,0.4)" }}>
+                      <p className="mt-0.5 text-xs" style={{ color: "rgba(58,159,255,0.4)" }}>
                         {formatBytes(file.size)}
                       </p>
                     </div>
@@ -1102,7 +1133,7 @@ export default function HitPredictorConsole() {
                   <div className="flex items-center gap-2 pl-[3.25rem] sm:gap-2.5 sm:pl-[3.75rem]">
                     <span
                       className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums"
-                      style={{ color: "rgba(74,144,217,0.5)" }}
+                      style={{ color: "rgba(58,159,255,0.5)" }}
                     >
                       {formatTime(currentTime)}
                     </span>
@@ -1121,21 +1152,21 @@ export default function HitPredictorConsole() {
                         aria-valuenow={Math.round(currentTime)}
                         onClick={handleSeek}
                         className="group/bar relative h-1.5 flex-1 cursor-pointer rounded-full"
-                        style={{ background: "rgba(74,144,217,0.13)" }}
+                        style={{ background: "rgba(58,159,255,0.13)" }}
                       >
                         <div
                           className="absolute inset-y-0 left-0 rounded-full transition-[width]"
                           style={{
                             width: `${duration ? (currentTime / duration) * 100 : 0}%`,
-                            background: "linear-gradient(90deg, #4A90D9, #1A4E85)",
-                            boxShadow: "0 0 10px rgba(74,144,217,0.5)",
+                            background: "linear-gradient(90deg, #3A9FFF, #1E65B8)",
+                            boxShadow: "0 0 10px rgba(58,159,255,0.5)",
                           }}
                         />
                       </div>
                     )}
                     <span
                       className="w-8 shrink-0 font-mono text-[10px] tabular-nums"
-                      style={{ color: "rgba(74,144,217,0.3)" }}
+                      style={{ color: "rgba(58,159,255,0.3)" }}
                     >
                       {formatTime(duration)}
                     </span>
@@ -1149,7 +1180,7 @@ export default function HitPredictorConsole() {
               type="button"
               onClick={handleAnalyze}
               disabled={!file || analyzing}
-              className={`relative mt-5 flex h-12 w-full max-w-[280px] items-center justify-center overflow-hidden rounded-xl text-[13px] font-bold uppercase tracking-[0.12em] transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4A90D9]/60 disabled:cursor-not-allowed sm:mt-7 sm:h-14 sm:max-w-xs sm:text-[14px] ${
+              className={`relative mt-5 flex h-12 w-full max-w-[280px] items-center justify-center overflow-hidden rounded-xl text-[13px] font-bold uppercase tracking-[0.12em] transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A9FFF]/60 disabled:cursor-not-allowed sm:mt-7 sm:h-14 sm:max-w-xs sm:text-[14px] ${
                 !file
                   ? ""
                   : analyzing
@@ -1160,22 +1191,22 @@ export default function HitPredictorConsole() {
                 border: !file
                   ? "1px solid rgba(255,255,255,0.06)"
                   : analyzing
-                  ? "1px solid rgba(74,144,217,0.3)"
-                  : "1px solid rgba(74,144,217,0.6)",
+                  ? "1px solid rgba(58,159,255,0.3)"
+                  : "1px solid rgba(58,159,255,0.6)",
                 background: !file
                   ? "rgba(255,255,255,0.03)"
                   : analyzing
-                  ? "rgba(74,144,217,0.13)"
-                  : "linear-gradient(135deg, #4A90D9, #14406E)",
+                  ? "rgba(58,159,255,0.13)"
+                  : "linear-gradient(135deg, #3A9FFF, #154E8C)",
                 color: !file
                   ? "rgba(255,255,255,0.2)"
                   : analyzing
-                  ? "#4A90D9"
+                  ? "#3A9FFF"
                   : "#020204",
                 boxShadow: analyzing
-                  ? "0 0 30px -8px rgba(74,144,217,0.4)"
+                  ? "0 0 30px -8px rgba(58,159,255,0.4)"
                   : file
-                  ? "0 0 40px -10px rgba(74,144,217,0.6), inset 0 1px 0 rgba(255,255,255,0.2)"
+                  ? "0 0 40px -10px rgba(58,159,255,0.6), inset 0 1px 0 rgba(255,255,255,0.2)"
                   : "none",
                 animation: analyzing ? "neon-pulse 1.6s ease-in-out infinite" : undefined,
               }}
@@ -1193,7 +1224,7 @@ export default function HitPredictorConsole() {
               <span className="relative z-[1] flex items-center gap-2.5">
                 {analyzing ? (
                   <>
-                    <EqualizerBars active barHeight="h-3.5" className="text-[#4A90D9]" />
+                    <EqualizerBars active barHeight="h-3.5" className="text-[#3A9FFF]" />
                     Analyzing track…
                   </>
                 ) : (
@@ -1206,6 +1237,31 @@ export default function HitPredictorConsole() {
                 )}
               </span>
             </button>
+
+            {/* High quality audio & AI disclaimer note */}
+            <div
+              className="mt-2 flex w-full max-w-[320px] items-start gap-2.5 rounded-xl px-3.5 py-3 text-left"
+              style={{
+                border: "1px solid rgba(58,159,255,0.15)",
+                background: "rgba(58,159,255,0.04)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <span className="mt-0.5 shrink-0 text-[#3A9FFF]">
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
+                  <path
+                    d="M12 9v4m0 4h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <p className="text-[11px] leading-relaxed text-[#9A9AA2]">
+                <strong className="font-semibold text-[#E0E0E0]">Tip:</strong> Upload high-quality audio (e.g. 320kbps MP3 or WAV) for best accuracy. AI predictions may occasionally make mistakes.
+              </p>
+            </div>
 
             {/* error state */}
             {result?.error && (
@@ -1234,34 +1290,34 @@ export default function HitPredictorConsole() {
               <div
                 className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl px-5 py-10 text-center sm:px-8 sm:py-16 lg:min-h-[400px] lg:justify-center"
                 style={{
-                  border: "1px solid rgba(74,144,217,0.22)",
-                  background: "linear-gradient(135deg, rgba(74,144,217,0.07), rgba(0,0,0,0.6))",
+                  border: "1px solid rgba(58,159,255,0.22)",
+                  background: "linear-gradient(135deg, rgba(58,159,255,0.07), rgba(0,0,0,0.6))",
                   backdropFilter: "blur(20px)",
                   boxShadow:
-                    "0 0 40px -15px rgba(74,144,217,0.3), inset 0 1px 0 rgba(74,144,217,0.13)",
+                    "0 0 40px -15px rgba(58,159,255,0.3), inset 0 1px 0 rgba(58,159,255,0.13)",
                   animation: "fade-up 0.4s ease-out",
                 }}
               >
                 <div className="relative flex h-24 w-24 items-center justify-center">
                   <div
                     className="absolute inset-0 rounded-full"
-                    style={{ border: "2px solid rgba(74,144,217,0.16)" }}
+                    style={{ border: "2px solid rgba(58,159,255,0.16)" }}
                   />
                   <div
                     className="absolute inset-0 animate-spin rounded-full"
                     style={{
                       border: "2px solid transparent",
-                      borderTopColor: "#4A90D9",
-                      filter: "drop-shadow(0 0 8px rgba(74,144,217,0.6))",
+                      borderTopColor: "#3A9FFF",
+                      filter: "drop-shadow(0 0 8px rgba(58,159,255,0.6))",
                     }}
                   />
-                  <EqualizerBars active barHeight="h-5" className="text-[#4A90D9]" />
+                  <EqualizerBars active barHeight="h-5" className="text-[#3A9FFF]" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold uppercase tracking-wide text-[#4A90D9]">
+                  <p className="text-sm font-bold uppercase tracking-wide text-[#3A9FFF]">
                     Listening to the track…
                   </p>
-                  <p className="mt-1 text-xs" style={{ color: "rgba(74,144,217,0.35)" }}>
+                  <p className="mt-1 text-xs" style={{ color: "rgba(58,159,255,0.35)" }}>
                     Reading tempo, energy, and genre cues
                   </p>
                 </div>
@@ -1273,12 +1329,12 @@ export default function HitPredictorConsole() {
                   <div
                     className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em]"
                     style={{
-                      border: "1px solid rgba(74,144,217,0.3)",
-                      background: "rgba(74,144,217,0.13)",
-                      color: "#4A90D9",
+                      border: "1px solid rgba(58,159,255,0.3)",
+                      background: "rgba(58,159,255,0.13)",
+                      color: "#3A9FFF",
                       backdropFilter: "blur(12px)",
                       boxShadow:
-                        "0 0 30px -14px rgba(74,144,217,0.6), inset 0 0 12px -4px rgba(74,144,217,0.16)",
+                        "0 0 30px -14px rgba(58,159,255,0.6), inset 0 0 12px -4px rgba(58,159,255,0.16)",
                       animation: "fade-up 0.4s ease-out",
                     }}
                   >
@@ -1294,12 +1350,12 @@ export default function HitPredictorConsole() {
                   }`}
                   style={{
                     animation: "fade-up 0.5s ease-out",
-                    border: `1px solid ${isHit ? "rgba(74,144,217,0.3)" : "rgba(255,49,49,0.22)"}`,
+                    border: `1px solid ${isHit ? "rgba(58,159,255,0.3)" : "rgba(255,49,49,0.22)"}`,
                     background: isHit
-                      ? "linear-gradient(135deg, rgba(74,144,217,0.13), rgba(0,0,0,0.7))"
+                      ? "linear-gradient(135deg, rgba(58,159,255,0.13), rgba(0,0,0,0.7))"
                       : "linear-gradient(135deg, rgba(255,49,49,0.04), rgba(0,0,0,0.7))",
                     boxShadow: isHit
-                      ? "0 0 60px -20px rgba(74,144,217,0.5), inset 0 1px 0 rgba(74,144,217,0.16), inset 0 0 30px -10px rgba(74,144,217,0.05)"
+                      ? "0 0 60px -20px rgba(58,159,255,0.5), inset 0 1px 0 rgba(58,159,255,0.16), inset 0 0 30px -10px rgba(58,159,255,0.05)"
                       : "0 0 50px -25px rgba(255,49,49,0.35), inset 0 1px 0 rgba(255,255,255,0.05)",
                     backdropFilter: "blur(24px)",
                   }}
@@ -1308,10 +1364,10 @@ export default function HitPredictorConsole() {
                     <span
                       className="mb-6 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-[0.16em]"
                       style={{
-                        color: isHit ? "#4A90D9" : "#FF3131",
-                        background: isHit ? "rgba(74,144,217,0.18)" : "rgba(255,49,49,0.1)",
-                        border: `1px solid ${isHit ? "rgba(74,144,217,0.25)" : "rgba(255,49,49,0.2)"}`,
-                        boxShadow: `0 0 15px -5px ${isHit ? "rgba(74,144,217,0.4)" : "rgba(255,49,49,0.3)"}`,
+                        color: isHit ? "#3A9FFF" : "#FF3131",
+                        background: isHit ? "rgba(58,159,255,0.18)" : "rgba(255,49,49,0.1)",
+                        border: `1px solid ${isHit ? "rgba(58,159,255,0.25)" : "rgba(255,49,49,0.2)"}`,
+                        boxShadow: `0 0 15px -5px ${isHit ? "rgba(58,159,255,0.4)" : "rgba(255,49,49,0.3)"}`,
                       }}
                     >
                       {isHit ? <IconSpark /> : <IconMuted />}
@@ -1340,7 +1396,19 @@ export default function HitPredictorConsole() {
                       <div
                         className="absolute -inset-2 rounded-full"
                         style={{
-                          border: `1px solid ${isHit ? "rgba(74,144,217,0.16)" : "rgba(255,49,49,0.08)"}`,
+                          border: `1px solid ${isHit ? "rgba(58,159,255,0.16)" : "rgba(255,49,49,0.08)"}`,
+                        }}
+                        aria-hidden="true"
+                      />
+                      {/* Spinning conic-gradient ring border */}
+                      <div
+                        className="pointer-events-none absolute -inset-1.5 rounded-full"
+                        style={{
+                          background: `conic-gradient(from var(--spin-angle, 0deg), ${ringColor}, transparent 30%, transparent 70%, ${ringColor})`,
+                          maskImage: "radial-gradient(circle, transparent 66%, black 68%, black 72%, transparent 74%)",
+                          WebkitMaskImage: "radial-gradient(circle, transparent 66%, black 68%, black 72%, transparent 74%)",
+                          animation: "spin-border 4s linear infinite",
+                          filter: `drop-shadow(0 0 8px ${ringColor})`,
                         }}
                         aria-hidden="true"
                       />
@@ -1351,7 +1419,7 @@ export default function HitPredictorConsole() {
                           background: `conic-gradient(${ringColor} ${
                             displayConfidence * 3.6
                           }deg, rgba(255,255,255,0.04) 0deg)`,
-                          filter: `drop-shadow(0 0 12px ${isHit ? "rgba(74,144,217,0.4)" : "rgba(255,49,49,0.3)"})`,
+                          filter: `drop-shadow(0 0 12px ${isHit ? "rgba(58,159,255,0.4)" : "rgba(255,49,49,0.3)"})`,
                         }}
                       >
                         <div
@@ -1359,7 +1427,7 @@ export default function HitPredictorConsole() {
                           style={{
                             background: "linear-gradient(135deg, #0a0a0c, #060608)",
                             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 20px -8px ${
-                              isHit ? "rgba(74,144,217,0.16)" : "rgba(255,49,49,0.08)"
+                              isHit ? "rgba(58,159,255,0.16)" : "rgba(255,49,49,0.08)"
                             }`,
                           }}
                         >
@@ -1367,7 +1435,7 @@ export default function HitPredictorConsole() {
                             className="font-mono text-2xl font-black tabular-nums sm:text-3xl"
                             style={{
                               color: ringColor,
-                              textShadow: `0 0 20px ${isHit ? "rgba(74,144,217,0.5)" : "rgba(255,49,49,0.4)"}`,
+                              textShadow: `0 0 20px ${isHit ? "rgba(58,159,255,0.5)" : "rgba(255,49,49,0.4)"}`,
                               letterSpacing: "-0.02em",
                             }}
                           >
@@ -1381,7 +1449,7 @@ export default function HitPredictorConsole() {
                           </span>
                           <span
                             className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em]"
-                            style={{ color: "rgba(74,144,217,0.4)" }}
+                            style={{ color: "rgba(58,159,255,0.4)" }}
                           >
                             Confidence
                           </span>
@@ -1394,16 +1462,16 @@ export default function HitPredictorConsole() {
                       <div className="mt-8 w-full">
                         <div
                           className="mb-3 flex items-center gap-3 text-[9px] font-bold uppercase tracking-[0.2em]"
-                          style={{ color: "rgba(74,144,217,0.4)" }}
+                          style={{ color: "rgba(58,159,255,0.4)" }}
                         >
                           <span
                             className="h-px flex-1"
-                            style={{ background: "rgba(74,144,217,0.16)" }}
+                            style={{ background: "rgba(58,159,255,0.16)" }}
                           />
                           Acoustic Breakdown
                           <span
                             className="h-px flex-1"
-                            style={{ background: "rgba(74,144,217,0.16)" }}
+                            style={{ background: "rgba(58,159,255,0.16)" }}
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1418,20 +1486,27 @@ export default function HitPredictorConsole() {
                             return (
                               <div
                                 key={key}
-                                className="flex flex-col items-center gap-2 rounded-xl px-2 py-4 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02]"
+                                className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-xl px-2 py-4 transition-all duration-300 hover:animate-[card-hover-breathe_2.8s_ease-in-out_infinite]"
                                 style={{
-                                  border: "1px solid rgba(74,144,217,0.16)",
-                                  background:
-                                    "linear-gradient(135deg, rgba(74,144,217,0.16), rgba(0,0,0,0.4))",
+                                  border: `1px solid ${meta.accent}2B`,
+                                  background: `linear-gradient(135deg, ${meta.accent}12, rgba(8,10,16,0.85))`,
                                   backdropFilter: "blur(12px)",
-                                  boxShadow:
-                                    "inset 0 1px 0 rgba(74,144,217,0.05), 0 0 15px -8px rgba(74,144,217,0.16)",
+                                  boxShadow: `inset 0 1px 0 ${meta.accent}1F, 0 0 15px -8px ${meta.accent}20`,
                                 }}
                               >
+                                {/* Hover light-up background & glowing border overlay */}
+                                <div
+                                  className="pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                                  style={{
+                                    background: `linear-gradient(135deg, ${meta.accent}52, ${meta.accent}22)`,
+                                    boxShadow: `inset 0 0 0 1.5px ${meta.accent}, 0 0 28px -2px ${meta.accent}A0`,
+                                  }}
+                                  aria-hidden="true"
+                                />
                                 <span
                                   style={{
                                     color: meta.accent,
-                                    filter: `drop-shadow(0 0 6px ${meta.accent}40)`,
+                                    filter: `drop-shadow(0 0 6px ${meta.accent}60)`,
                                   }}
                                 >
                                   {meta.icon}
@@ -1447,20 +1522,20 @@ export default function HitPredictorConsole() {
                                 </span>
                                 <span
                                   className="text-[9px] font-bold uppercase tracking-[0.15em]"
-                                  style={{ color: "rgba(74,144,217,0.35)" }}
+                                  style={{ color: `${meta.accent}CC` }}
                                 >
                                   {meta.label}
                                 </span>
                                 <div
                                   className="mt-1 h-1 w-full overflow-hidden rounded-full"
-                                  style={{ background: "rgba(74,144,217,0.16)" }}
+                                  style={{ background: "rgba(255,255,255,0.08)" }}
                                 >
                                   <div
                                     className="h-full rounded-full transition-[width] duration-700 ease-out"
                                     style={{
                                       width: statsRevealed ? `${meta.meter(value)}%` : "0%",
-                                      background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}99)`,
-                                      boxShadow: `0 0 8px ${meta.accent}60`,
+                                      background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}AA)`,
+                                      boxShadow: `0 0 8px ${meta.accent}80`,
                                       transitionDelay: `${i * 110}ms`,
                                     }}
                                   />
@@ -1478,8 +1553,8 @@ export default function HitPredictorConsole() {
               <div
                 className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl px-5 py-10 text-center sm:px-8 sm:py-16 lg:min-h-[400px] lg:justify-center"
                 style={{
-                  border: "1px dashed rgba(74,144,217,0.18)",
-                  background: "rgba(74,144,217,0.07)",
+                  border: "1px dashed rgba(58,159,255,0.18)",
+                  background: "rgba(58,159,255,0.07)",
                   backdropFilter: "blur(12px)",
                   animation: "fade-up 0.4s ease-out",
                 }}
@@ -1487,23 +1562,23 @@ export default function HitPredictorConsole() {
                 <div
                   className="flex h-16 w-16 items-center justify-center rounded-xl"
                   style={{
-                    border: "1px solid rgba(74,144,217,0.16)",
-                    background: "rgba(74,144,217,0.07)",
+                    border: "1px solid rgba(58,159,255,0.16)",
+                    background: "rgba(58,159,255,0.07)",
                     animation: "float 4s ease-in-out infinite",
                   }}
                 >
-                  <EqualizerBars active={false} barHeight="h-5" className="text-[#4A90D9]/20" />
+                  <EqualizerBars active={false} barHeight="h-5" className="text-[#3A9FFF]/20" />
                 </div>
                 <div>
                   <p
                     className="text-sm font-semibold uppercase tracking-wide"
-                    style={{ color: "rgba(74,144,217,0.4)" }}
+                    style={{ color: "rgba(58,159,255,0.4)" }}
                   >
                     Your prediction will land here
                   </p>
                   <p
                     className="mt-1 max-w-[240px] text-xs"
-                    style={{ color: "rgba(74,144,217,0.2)" }}
+                    style={{ color: "rgba(58,159,255,0.2)" }}
                   >
                     Upload a track and hit analyze to see the genre, hit score, and acoustic
                     breakdown.
@@ -1519,16 +1594,16 @@ export default function HitPredictorConsole() {
           <div className="mt-10 w-full sm:mt-14">
             <div
               className="mb-4 flex items-center gap-3 text-[9px] font-bold uppercase tracking-[0.2em]"
-              style={{ color: "rgba(74,144,217,0.4)" }}
+              style={{ color: "rgba(58,159,255,0.4)" }}
             >
               <span
                 className="h-px flex-1"
-                style={{ background: "rgba(74,144,217,0.16)" }}
+                style={{ background: "rgba(58,159,255,0.16)" }}
               />
               Recent Analyses
               <span
                 className="h-px flex-1"
-                style={{ background: "rgba(74,144,217,0.16)" }}
+                style={{ background: "rgba(58,159,255,0.16)" }}
               />
             </div>
             <div className="flex w-full gap-3 overflow-x-auto pb-2">
@@ -1543,26 +1618,26 @@ export default function HitPredictorConsole() {
                     className="flex min-w-[160px] max-w-[190px] shrink-0 flex-col gap-2 rounded-xl p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] sm:min-w-[190px] sm:p-4"
                     style={{
                       border: isActive
-                        ? "1px solid rgba(74,144,217,0.4)"
-                        : "1px solid rgba(74,144,217,0.13)",
+                        ? "1px solid rgba(58,159,255,0.4)"
+                        : "1px solid rgba(58,159,255,0.13)",
                       background: isActive
-                        ? "rgba(74,144,217,0.13)"
-                        : "linear-gradient(135deg, rgba(74,144,217,0.07), rgba(0,0,0,0.4))",
+                        ? "rgba(58,159,255,0.13)"
+                        : "linear-gradient(135deg, rgba(58,159,255,0.07), rgba(0,0,0,0.4))",
                       backdropFilter: "blur(12px)",
                       boxShadow: isActive
-                        ? "0 0 20px -8px rgba(74,144,217,0.4), inset 0 0 12px -4px rgba(74,144,217,0.05)"
-                        : "inset 0 1px 0 rgba(74,144,217,0.16)",
+                        ? "0 0 20px -8px rgba(58,159,255,0.4), inset 0 0 12px -4px rgba(58,159,255,0.05)"
+                        : "inset 0 1px 0 rgba(58,159,255,0.16)",
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <span
                         className="rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide"
                         style={{
-                          color: entryIsHit ? "#4A90D9" : "#FF3131",
+                          color: entryIsHit ? "#3A9FFF" : "#FF3131",
                           background: entryIsHit
-                            ? "rgba(74,144,217,0.18)"
+                            ? "rgba(58,159,255,0.18)"
                             : "rgba(255,49,49,0.1)",
-                          border: `1px solid ${entryIsHit ? "rgba(74,144,217,0.2)" : "rgba(255,49,49,0.15)"}`,
+                          border: `1px solid ${entryIsHit ? "rgba(58,159,255,0.2)" : "rgba(255,49,49,0.15)"}`,
                         }}
                       >
                         {entryIsHit ? "Hit" : "Pass"}
@@ -1570,8 +1645,8 @@ export default function HitPredictorConsole() {
                       <span
                         className="font-mono text-xs font-bold"
                         style={{
-                          color: "rgba(74,144,217,0.6)",
-                          textShadow: "0 0 8px rgba(74,144,217,0.3)",
+                          color: "rgba(58,159,255,0.6)",
+                          textShadow: "0 0 8px rgba(58,159,255,0.3)",
                         }}
                       >
                         {(entry.result.confidence ?? 0).toFixed(0)}%
@@ -1583,7 +1658,7 @@ export default function HitPredictorConsole() {
                     {entry.result.genre && (
                       <p
                         className="truncate text-[9px] font-bold uppercase tracking-[0.15em]"
-                        style={{ color: "rgba(74,144,217,0.3)" }}
+                        style={{ color: "rgba(58,159,255,0.3)" }}
                       >
                         {entry.result.genre}
                       </p>
@@ -1596,21 +1671,29 @@ export default function HitPredictorConsole() {
         )}
 
         {/* Footer branding */}
-        <div className="mt-10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] sm:mt-16" style={{ color: "rgba(74,144,217,0.22)" }}>
-          <div className="h-px w-8" style={{ background: "rgba(74,144,217,0.16)" }} />
+        <div className="mt-10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] sm:mt-16" style={{ color: "rgba(58,159,255,0.22)" }}>
+          <div className="h-px w-8" style={{ background: "rgba(58,159,255,0.16)" }} />
           Neural Audio Engine v2.0
-          <div className="h-px w-8" style={{ background: "rgba(74,144,217,0.16)" }} />
+          <div className="h-px w-8" style={{ background: "rgba(58,159,255,0.16)" }} />
         </div>
       </div>
 
       <style>{`
+        @property --spin-angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes spin-border {
+          to { --spin-angle: 360deg; }
+        }
         @keyframes eq-bounce {
           0%, 100% { transform: scaleY(0.35); }
           50% { transform: scaleY(1); }
         }
         @keyframes neon-pulse {
-          0%, 100% { box-shadow: 0 0 20px -5px rgba(74,144,217,0.4), inset 0 0 12px -4px rgba(74,144,217,0.16); }
-          50% { box-shadow: 0 0 40px -5px rgba(74,144,217,0.6), inset 0 0 20px -4px rgba(74,144,217,0.22); }
+          0%, 100% { box-shadow: 0 0 20px -5px rgba(58,159,255,0.4), inset 0 0 12px -4px rgba(58,159,255,0.16); }
+          50% { box-shadow: 0 0 40px -5px rgba(58,159,255,0.6), inset 0 0 20px -4px rgba(58,159,255,0.22); }
         }
         @keyframes ring-glow-pulse {
           0%, 100% { opacity: 0.3; transform: scale(1); }
@@ -1659,6 +1742,14 @@ export default function HitPredictorConsole() {
         }
         @keyframes border-dash-march {
           to { background-position: 100% 100%; }
+        }
+        @keyframes card-hover-breathe {
+          0%, 100% { transform: translateY(-4px) scale(1.025); }
+          50% { transform: translateY(-6px) scale(1.042); }
+        }
+        @keyframes cyber-grid-pulse {
+          0%, 100% { opacity: 0.10; }
+          50% { opacity: 0.18; }
         }
         @media (prefers-reduced-motion: reduce) {
           * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
