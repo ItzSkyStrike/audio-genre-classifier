@@ -32,6 +32,7 @@ type HistoryEntry = {
   result: PredictionResult;
 };
 
+/*use local api if the backend code is running on local machine or desired cloud platform api*/
 const API_URL = "https://hit-predictor-api.proudbeach-12e8e35e.centralindia.azurecontainerapps.io/predict";
 const ACCEPTED_EXT = /\.(mp3|wav)$/i;
 
